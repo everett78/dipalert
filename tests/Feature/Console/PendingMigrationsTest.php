@@ -33,7 +33,9 @@ class PendingMigrationsTest extends TestCase
 
     public function test_fresh_install_without_migrations_table()
     {
-        Schema::drop('migrations');
+        // Simulate a fresh install. Dropping the real table would leak into
+        // later tests: DDL is not rolled back by the test transaction.
+        Schema::shouldReceive('hasTable')->with('migrations')->andReturn(false);
 
         $this->artisan(PendingMigrations::COMMAND)->assertExitCode(PendingMigrations::FRESH_INSTALL);
     }
