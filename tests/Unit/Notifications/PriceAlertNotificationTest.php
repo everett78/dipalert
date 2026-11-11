@@ -2,12 +2,10 @@
 
 namespace Tests\Unit\Notifications;
 
-use App\Models\Price;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\Url;
 use App\Models\User;
-use App\Notifications\Messages\GenericNotificationMessage;
 use App\Notifications\PriceAlertNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,45 +14,39 @@ class PriceAlertNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_to_gotify_formats_message_correctly()
+    public function test_to_mail_has_the_price_drop_subject()
     {
         $user = User::factory()->create();
 
-        [$store, $product, $url] = $this->createStoreProductAndPrice(
-            'Test Store',
-            'Test Product',
-            $user->getKey(),
-            99.99
-        );
+        [, , $url] = $this->createStoreProductAndPrice('Test Store', 'Test Product', $user->getKey(), 99.99);
 
-        $notification = new PriceAlertNotification($url);
-        $gotifyMessage = $notification->toGotify($user);
+        $mail = (new PriceAlertNotification($url))->toMail($user);
 
-        $this->assertInstanceOf(GenericNotificationMessage::class, $gotifyMessage);
-        $this->assertEquals('Price drop: Test Product ($99.99)', $gotifyMessage->title);
-        $this->assertStringContainsString('Test Store has had a price drop for Test Product - $99.99', $gotifyMessage->content);
-        $this->assertEquals(5, $gotifyMessage->priority); // Default priority set in the notification
-        $this->assertEquals('https://example.com/product', $gotifyMessage->url);
+        $this->assertEquals('Price drop: Test Product ($99.99)', $mail->subject);
     }
 
-    public function test_to_apprise_formats_message_correctly()
+    public function test_to_array_contains_summary_and_buy_url()
     {
         $user = User::factory()->create();
 
-        [$store, $product, $url] = $this->createStoreProductAndPrice(
-            'Test Store',
-            'Test Product',
-            $user->getKey(),
-            99.99
-        );
+        [, , $url] = $this->createStoreProductAndPrice('Test Store', 'Test Product', $user->getKey(), 99.99);
 
-        $notification = new PriceAlertNotification($url);
-        $gotifyMessage = $notification->toApprise($user);
+        $data = (new PriceAlertNotification($url))->toArray($user);
 
-        $this->assertInstanceOf(GenericNotificationMessage::class, $gotifyMessage);
-        $this->assertEquals('Price drop: Test Product ($99.99)', $gotifyMessage->title);
-        $this->assertStringContainsString('Test Store has had a price drop for Test Product - $99.99', $gotifyMessage->content);
-        $this->assertEquals('https://example.com/product', $gotifyMessage->url);
+        $this->assertStringContainsString('Test Store has had a price drop for Test Product - $99.99', $data['summary']);
+        $this->assertEquals('https://example.com/product', $data['buyUrl']);
+    }
+
+    public function test_only_mail_and_database_channels_are_used()
+    {
+        $user = User::factory()->create();
+
+        [, , $url] = $this->createStoreProductAndPrice('Test Store', 'Test Product', $user->getKey(), 99.99);
+
+        $channels = (new PriceAlertNotification($url))->via($user);
+
+        $this->assertEmpty(array_diff($channels, ['mail', 'database']));
+        $this->assertContains('database', $channels);
     }
 
     protected function createStoreProductAndPrice(string $storeName, string $productTitle, int $userId, float $price): array
@@ -74,7 +66,6 @@ class PriceAlertNotificationTest extends TestCase
             'url' => 'https://example.com/product',
         ]);
 
-        // Create associated price
         $url->prices()->create([
             'price' => $price,
             'store_id' => $store->id,

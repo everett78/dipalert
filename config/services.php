@@ -35,8 +35,4 @@ return [
         ],
     ],
 
-    'pushover' => [
-        'token' => env('PUSHOVER_APP_TOKEN'),
-    ],
-
 ];

@@ -13,12 +13,14 @@ jobs:
       image: jez500/pricebuddy-tests-8.4:latest
 
     services:
+      # Service name stays "mysql" because .env.ci and phpunit.xml refer to it.
+      # MariaDB 11 matches the production database on TrueNAS.
       mysql:
-        image: mysql:5.7
+        image: mariadb:11
         env:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: tests_db
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+          MARIADB_ROOT_PASSWORD: password
+          MARIADB_DATABASE: tests_db
+        options: --health-cmd="healthcheck.sh --connect --innodb_initialized" --health-interval=10s --health-timeout=5s --health-retries=5
 
     steps:
       -
@@ -55,16 +57,17 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       -
-        name: Login to Docker Hub
+        name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ vars.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -75,11 +78,11 @@ jobs:
         name: Build and push
         uses: docker/build-push-action@v6
         with:
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           file: ./docker/php.dockerfile
           push: true
           tags: |
-            jez500/pricebuddy:${{ github.ref_name }}
-            jez500/pricebuddy:latest
+            ghcr.io/everett78/dipalert:${{ github.ref_name }}
+            ghcr.io/everett78/dipalert:latest
           build-args: |
             APP_VERSION=${{ github.ref_name }}

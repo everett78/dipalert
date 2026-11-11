@@ -1,29 +1,15 @@
 <?php
 
-use App\Enums\IntegratedServices;
-use App\Models\UrlResearch;
-use App\Services\Helpers\IntegrationHelper;
-use App\Services\SearchService;
 use Illuminate\Database\Migrations\Migration;
-use Spatie\LaravelSettings\Exceptions\MissingSettings;
 
 return new class extends Migration
 {
     /**
-     * Run the migrations.
+     * PriceBuddy set SearXNG search defaults here. DipAlert removed the search
+     * feature, so this migration is kept only as a no-op to preserve history.
      */
     public function up(): void
     {
-        try {
-            $settings = IntegrationHelper::getSettings();
-
-            data_set($settings, IntegratedServices::SearXng->value.'.prune_days', UrlResearch::DEFAULT_PRUNE_DAYS);
-            data_set($settings, IntegratedServices::SearXng->value.'.max_pages', SearchService::DEFAULT_MAX_PAGES);
-
-            IntegrationHelper::setSettings($settings);
-        } catch (MissingSettings $e) {
-            // Settings not fully migrated yet, skip this migration
-            // It will be handled when settings are properly configured
-        }
+        //
     }
 };

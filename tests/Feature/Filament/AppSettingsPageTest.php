@@ -19,28 +19,16 @@ class AppSettingsPageTest extends TestCase
         $this->actingAs(User::factory()->admin()->create());
     }
 
-    public function test_max_priced_results_rejects_non_integer_values()
+    public function test_removed_integrations_are_not_on_the_settings_page(): void
     {
         Livewire::test(AppSettingsPage::class)
-            ->fillForm([
-                'integrated_services.searxng.enabled' => true,
-                'integrated_services.searxng.url' => 'https://searxng.example.com/search',
-                'integrated_services.searxng.max_priced_results' => 2.5,
-            ])
-            ->call('save')
-            ->assertHasFormErrors(['integrated_services.searxng.max_priced_results' => 'integer']);
-    }
-
-    public function test_max_priced_results_accepts_integer_values()
-    {
-        Livewire::test(AppSettingsPage::class)
-            ->fillForm([
-                'integrated_services.searxng.enabled' => true,
-                'integrated_services.searxng.url' => 'https://searxng.example.com/search',
-                'integrated_services.searxng.max_priced_results' => 3,
-            ])
-            ->call('save')
-            ->assertHasNoFormErrors(['integrated_services.searxng.max_priced_results']);
+            ->assertDontSee('SearXng')
+            ->assertDontSee('Pushover')
+            ->assertDontSee('Gotify')
+            ->assertDontSee('Apprise')
+            ->assertDontSee('Telegram')
+            ->assertDontSee('Discord')
+            ->assertDontSee('ntfy');
     }
 
     public function test_settings_page_renders_the_tabs(): void

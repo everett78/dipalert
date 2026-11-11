@@ -7,12 +7,7 @@ use App\Enums\AiProvider;
 use App\Enums\Icons;
 use App\Enums\IntegratedServices;
 use App\Enums\NotificationMethods;
-use App\Filament\Actions\Notifications\TestAppriseAction;
-use App\Filament\Actions\Notifications\TestDiscordAction;
-use App\Filament\Actions\Notifications\TestGotifyAction;
-use App\Filament\Actions\Notifications\TestTelegramAction;
 use App\Filament\Traits\FormHelperTrait;
-use App\Models\UrlResearch;
 use App\Rules\ValidCron;
 use App\Services\AiService;
 use App\Services\Helpers\CurrencyHelper;
@@ -20,7 +15,6 @@ use App\Services\Helpers\IntegrationHelper;
 use App\Services\Helpers\LocaleHelper;
 use App\Services\Helpers\ScheduleHelper;
 use App\Services\OllamaService;
-use App\Services\SearchService;
 use App\Settings\AppSettings;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Group;
@@ -36,7 +30,6 @@ use Filament\Pages\SettingsPage;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\HtmlString;
 use Illuminate\Support\Once;
 use Illuminate\Support\Str;
 
@@ -187,19 +180,12 @@ class AppSettingsPage extends SettingsPage
                         ->icon('heroicon-o-magnifying-glass')
                         ->schema([
                             $this->getScrapeSection(),
-                            $this->getSearXngSettings(),
                         ]),
 
                     Tabs\Tab::make('Notifications')
                         ->icon('heroicon-o-bell')
                         ->schema([
                             $this->getEmailSettings(),
-                            $this->getPushoverSettings(),
-                            $this->getGotifySettings(),
-                            $this->getAppriseSettings(),
-                            $this->getTelegramSettings(),
-                            $this->getDiscordSettings(),
-                            $this->getNtfySettings(),
                         ]),
 
                     Tabs\Tab::make('AI')
@@ -323,204 +309,6 @@ class AppSettingsPage extends SettingsPage
                     ->hintIcon(Icons::Help->value, 'The encryption method to use when sending emails'),
             ],
             __('SMTP settings for sending emails'),
-            flat: true
-        );
-    }
-
-    protected function getPushoverSettings(): Group
-    {
-        return self::makeSettingsSection(
-            'Pushover',
-            self::NOTIFICATION_SERVICES_KEY,
-            NotificationMethods::Pushover->value,
-            [
-                TextInput::make('token')
-                    ->label('Pushover token')
-                    ->hint(new HtmlString('<a href="https://pushover.net/apps/build" target="_blank">Create an application</a>'))
-                    ->required(),
-            ],
-            __('Push notifications via Pushover'),
-            flat: true
-        );
-    }
-
-    protected function getGotifySettings(): Group
-    {
-        return self::makeSettingsSection(
-            'Gotify',
-            self::NOTIFICATION_SERVICES_KEY,
-            NotificationMethods::Gotify->value,
-            [
-                TextInput::make('url')
-                    ->label('Gotify server URL')
-                    ->placeholder('https://gotify.example.com')
-                    ->required(),
-                TextInput::make('token')
-                    ->label('Application token')
-                    ->required()
-                    ->password()
-                    ->suffixAction(
-                        TestGotifyAction::make()
-                            ->setSettings(fn () => $this->form->getState()['notification_services']['gotify'] ?? []),
-                    ),
-            ],
-            __('Push notifications via Gotify'),
-            flat: true
-        );
-    }
-
-    protected function getAppriseSettings(): Group
-    {
-        return self::makeSettingsSection(
-            'Apprise',
-            self::NOTIFICATION_SERVICES_KEY,
-            NotificationMethods::Apprise->value,
-            [
-                TextInput::make('url')
-                    ->label('Apprise API server URL')
-                    ->placeholder('https://apprise.example.com')
-                    ->required(),
-                TextInput::make('token')
-                    ->label('Configuration token')
-                    ->required()
-                    ->suffixAction(
-                        TestAppriseAction::make()
-                            ->setSettings(fn () => data_get($this->form->getState(), 'notification_services.apprise', [])),
-                    ),
-            ],
-            __('Push notifications via Apprise'),
-            flat: true
-        );
-    }
-
-    protected function getTelegramSettings(): Group
-    {
-        return self::makeSettingsSection(
-            'Telegram',
-            self::NOTIFICATION_SERVICES_KEY,
-            NotificationMethods::Telegram->value,
-            [
-                TextInput::make('bot_token')
-                    ->label('Bot token')
-                    ->password()
-                    ->required()
-                    ->hint(new HtmlString('<a href="https://t.me/botfather" target="_blank">Create a bot</a>'))
-                    ->hintIcon(Icons::Help->value, __('Create a bot with @BotFather and paste the token here. Each user then adds their own chat id in their profile.'))
-                    ->suffixAction(
-                        TestTelegramAction::make()
-                            ->setSettings(fn () => data_get($this->form->getState(), 'notification_services.telegram', [])),
-                    ),
-            ],
-            __('Push notifications via a Telegram bot'),
-            flat: true
-        );
-    }
-
-    protected function getDiscordSettings(): Group
-    {
-        return self::makeSettingsSection(
-            'Discord',
-            self::NOTIFICATION_SERVICES_KEY,
-            NotificationMethods::Discord->value,
-            [
-                TextInput::make('webhook_url')
-                    ->label('Default webhook URL')
-                    ->url()
-                    ->password()
-                    ->revealable()
-                    ->placeholder('https://discord.com/api/webhooks/...')
-                    ->hintIcon(Icons::Help->value, __('Optional default Discord channel webhook. Users can override this with their own webhook in their profile.'))
-                    ->suffixAction(
-                        TestDiscordAction::make()
-                            ->setSettings(fn () => data_get($this->form->getState(), 'notification_services.discord', [])),
-                    ),
-            ],
-            __('Push notifications to a Discord channel via webhooks'),
-            flat: true
-        );
-    }
-
-    protected function getNtfySettings(): Group
-    {
-        return self::makeSettingsSection(
-            'ntfy',
-            self::NOTIFICATION_SERVICES_KEY,
-            NotificationMethods::Ntfy->value,
-            [
-                TextInput::make('server_url')
-                    ->label('Server URL')
-                    ->url()
-                    ->placeholder('https://ntfy.sh')
-                    ->hintIcon(Icons::Help->value, __('Leave blank to use the public ntfy.sh server, or enter your self-hosted server URL.')),
-                TextInput::make('username')
-                    ->label('Username')
-                    ->hintIcon(Icons::Help->value, __('Optional. Only needed for protected self-hosted servers.')),
-                TextInput::make('password')
-                    ->label('Password')
-                    ->password()
-                    ->hintIcon(Icons::Help->value, __('Optional. Only needed for protected self-hosted servers.')),
-            ],
-            __('Push notifications via ntfy. Each user subscribes to their own topic in their profile.'),
-            flat: true
-        );
-    }
-
-    protected function getSearXngSettings(): Group
-    {
-        return self::makeSettingsSection(
-            'SearXng',
-            self::INTEGRATED_SERVICES_KEY,
-            IntegratedServices::SearXng->value,
-            [
-                TextInput::make('url')
-                    ->label('SearXng url')
-                    ->placeholder('https://searxng.homelab.com/search')
-                    ->hintIcon(Icons::Help->value, __('Url of your SearXng instance, including the search path'))
-                    ->required(),
-                TextInput::make('search_prefix')
-                    ->label('Search prefix')
-                    ->placeholder('Buy')
-                    ->hintIcon(Icons::Help->value, __('Text to prepend to the product name when searching'))
-                    ->nullable(),
-                TextInput::make('max_priced_results')
-                    ->label('Stop after this many priced results')
-                    ->hintIcon(Icons::Help->value, __('Search will stop once this many results with detected prices have been found'))
-                    ->integer()
-                    ->minValue(1)
-                    ->required()
-                    ->default(SearchService::DEFAULT_MAX_PRICED_RESULTS),
-                Select::make('prune_days')
-                    ->label('Cache duration')
-                    ->required()
-                    ->hintIcon(Icons::Help->value, __('How long to keep the parsed search results in the cache'))
-                    ->options([
-                        1 => '1 day',
-                        7 => '7 days',
-                        14 => '14 days',
-                        30 => '30 days',
-                        90 => '90 days',
-                        180 => '180 days',
-                        365 => '365 days',
-                    ])
-                    ->default(UrlResearch::DEFAULT_PRUNE_DAYS),
-                Select::make('max_pages')
-                    ->label('How many pages of results to fetch')
-                    ->required()
-                    ->hintIcon(Icons::Help->value, __('The more pages you fetch, the longer it will take to search'))
-                    ->options(options: [
-                        1 => '1 page',
-                        2 => '2 pages',
-                        3 => '3 pages',
-                        4 => '4 pages',
-                        5 => '5 pages',
-                        10 => '10 pages',
-                        20 => '20 pages',
-                        50 => '50 pages',
-                        100 => '100 pages',
-                    ])
-                    ->default(SearchService::DEFAULT_MAX_PAGES),
-            ],
-            new HtmlString('Automatically search for additional products urls via <a href="https://searxng.org/" target="_blank">SearXng</a>'),
             flat: true
         );
     }

@@ -4,11 +4,9 @@ namespace App\Providers;
 
 use App\Enums\NotificationMethods;
 use App\Models\Product;
-use App\Models\ProductSource;
 use App\Models\Store;
 use App\Models\User;
 use App\Policies\ProductPolicy;
-use App\Policies\ProductSourcePolicy;
 use App\Policies\StorePolicy;
 use App\Policies\UserPolicy;
 use App\Services\Helpers\NotificationsHelper;
@@ -45,7 +43,6 @@ class AppServiceProvider extends ServiceProvider
     protected function registerPolicies(): void
     {
         Gate::policy(Product::class, ProductPolicy::class);
-        Gate::policy(ProductSource::class, ProductSourcePolicy::class);
         Gate::policy(Store::class, StorePolicy::class);
         Gate::policy(User::class, UserPolicy::class);
     }
@@ -90,14 +87,6 @@ class AppServiceProvider extends ServiceProvider
                 'mail.mailers.smtp.password' => NotificationsHelper::getSetting($mail, 'smtp_password'),
                 'mail.mailers.smtp.encryption' => NotificationsHelper::getSetting($mail, 'encryption') ?: null,
                 'mail.from.address' => NotificationsHelper::getSetting($mail, 'from_address', 'hello@example.com'),
-            ]);
-        }
-
-        // Pushover.
-        $pushover = NotificationMethods::Pushover->value;
-        if (NotificationsHelper::isEnabled($pushover)) {
-            config([
-                'services.pushover.token' => NotificationsHelper::getSetting($pushover, 'token'),
             ]);
         }
 

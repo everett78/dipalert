@@ -6,7 +6,6 @@ use App\Models\Price;
 use App\Models\Product;
 use App\Models\Url;
 use App\Models\User;
-use App\Notifications\Messages\GenericNotificationMessage;
 use App\Services\Helpers\CurrencyHelper;
 use App\Services\Helpers\NotificationsHelper;
 use Filament\Notifications\Actions\Action;
@@ -14,13 +13,10 @@ use Filament\Notifications\Notification as DatabaseNotification;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Str;
-use NotificationChannels\Pushover\PushoverMessage;
 
 class PriceAlertNotification extends Notification
 {
     // use Queueable;
-
-    protected string $ctaText = 'View price history';
 
     protected ?Product $product;
 
@@ -93,53 +89,6 @@ class PriceAlertNotification extends Notification
             'newPrice' => $this->getPriceFormatted(),
             'averagePrice' => data_get($this->product?->price_aggregates, 'avg', '$0.00'),
         ];
-    }
-
-    public function toPushover($notifiable)
-    {
-        return PushoverMessage::create($this->getSummary())
-            ->title($this->getTitle())
-            ->url($this->getUrl(), $this->ctaText);
-    }
-
-    public function toGotify($notifiable)
-    {
-        return GenericNotificationMessage::create($this->getSummary())
-            ->title($this->getTitle())
-            ->url($this->getUrl())
-            ->priority(5);
-    }
-
-    public function toApprise($notifiable)
-    {
-        return GenericNotificationMessage::create($this->getSummary())
-            ->title($this->getTitle())
-            ->url($this->getUrl())
-            ->priority(5);
-    }
-
-    public function toTelegram($notifiable)
-    {
-        return GenericNotificationMessage::create($this->getSummary())
-            ->title($this->getTitle())
-            ->url($this->getUrl())
-            ->priority(5);
-    }
-
-    public function toDiscord($notifiable)
-    {
-        return GenericNotificationMessage::create($this->getSummary())
-            ->title($this->getTitle())
-            ->url($this->getUrl())
-            ->priority(5);
-    }
-
-    public function toNtfy($notifiable)
-    {
-        return GenericNotificationMessage::create($this->getSummary())
-            ->title($this->getTitle())
-            ->url($this->getUrl())
-            ->priority(5);
     }
 
     protected function getTitle(): string

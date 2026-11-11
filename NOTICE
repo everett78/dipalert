@@ -1,0 +1,17 @@
+DipAlert
+Copyright (C) 2026 Marcin Łuczkiewicz
+
+DipAlert is based on PriceBuddy (https://github.com/jez500/pricebuddy)
+by jez500, version v1.0.57 (commit f606128), licensed under the GNU
+General Public License v3.0. DipAlert is distributed under the same
+license; see LICENSE.
+
+Modifications to the original work (GPL-3.0, section 5a):
+
+2026-11-11  Stage 1: name and branding (DipAlert), Docker image published
+            to GitHub Container Registry, TrueNAS deployment file, Polish
+            locale, database backups (nightly and before migrations),
+            indexes on the prices table, removal of the SearXNG product
+            search and of notification channels other than e-mail
+            (ntfy, Gotify, Discord, Apprise, Telegram, Pushover),
+            first user's password no longer printed to logs.

@@ -1,0 +1,60 @@
+# DipAlert on TrueNAS 25.10 (custom app, "Install via YAML").
+#
+# Before installing, replace every value marked CHANGE_ME and the dataset
+# paths under "volumes". Keep APP_KEY the same forever: it encrypts the AI
+# keys stored in the settings. Generate it once with:
+#   echo "base64:$(openssl rand -base64 32)"
+#
+# SMTP is configured in the panel (Settings -> Notifications -> E-mail),
+# not here.
+
+services:
+
+  dipalert:
+    # Always a fixed version, never "latest".
+    image: ghcr.io/everett78/dipalert:v0.1.0
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - /mnt/tank/apps/dipalert/storage:/app/storage
+      - /mnt/tank/apps/dipalert/backups:/backups
+    environment:
+      APP_KEY: CHANGE_ME
+      APP_URL: https://CHANGE_ME
+      APP_TIMEZONE: Europe/Warsaw
+      APP_LOCALE: pl
+      AFFILIATE_ENABLED: "false"
+      DB_CONNECTION: mysql
+      DB_HOST: database
+      DB_PORT: "3306"
+      DB_DATABASE: dipalert
+      DB_USERNAME: dipalert
+      DB_PASSWORD: CHANGE_ME
+      # First administrator, created on the first start only.
+      APP_USER_EMAIL: CHANGE_ME
+      APP_USER_PASSWORD: CHANGE_ME
+      # Existing FlareSolverr app on TrueNAS.
+      FLARESOLVERR_URL: http://192.168.0.21:30098
+      # Home-network hosts the app may connect to as services (comma separated).
+      DIPALERT_ALLOWED_INTERNAL_HOSTS: 192.168.0.21
+    depends_on:
+      database:
+        condition: service_healthy
+
+  database:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: dipalert
+      MARIADB_USER: dipalert
+      MARIADB_PASSWORD: CHANGE_ME
+      MARIADB_ROOT_PASSWORD: CHANGE_ME
+    volumes:
+      - /mnt/tank/apps/dipalert/db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 1m

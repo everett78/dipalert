@@ -86,18 +86,6 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
-     * Set Pushover user key.
-     *
-     * @see https://github.com/laravel-notification-channels/pushover?tab=readme-ov-file#advanced-usage-and-configuration
-     *
-     * Other notification channels may implement user settings differently.
-     */
-    public function routeNotificationForPushover()
-    {
-        return $this->getNotificationSettings(NotificationMethods::Pushover, 'user_key');
-    }
-
-    /**
      * Determine whether the user has the Admin role.
      */
     public function isAdmin(): bool

@@ -6,9 +6,6 @@ if [ ! -f ".env" ] ||  ! grep -q . ".env" ; then
     php artisan key:generate --force
 fi
 
-# Debugging
-printenv
-
 # Ensure storage exists
 mkdir -p storage/framework/sessions \
     && mkdir -p storage/framework/views \
@@ -29,6 +26,20 @@ done
 
 # Optimize clear once DB ready
 php artisan optimize:clear
+
+# Back up the database before migrations change it (DipAlert).
+# Exit codes: 0 = nothing pending, 10 = pending, 20 = fresh install, other = error.
+php artisan dipalert:pending-migrations
+pending_status=$?
+if [ "$pending_status" -eq 10 ]; then
+    if ! php artisan dipalert:backup --reason=pre-migration; then
+        >&2 echo "Pre-migration backup failed - not starting, so migrations do not run without a backup"
+        exit 1
+    fi
+elif [ "$pending_status" -ne 0 ] && [ "$pending_status" -ne 20 ]; then
+    >&2 echo "Could not check pending migrations - not starting"
+    exit 1
+fi
 
 # Run migrations and seed the database if required
 php artisan buddy:init-db

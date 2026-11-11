@@ -5,20 +5,18 @@ namespace App\Notifications;
 use App\Models\Product;
 use App\Models\Url;
 use App\Models\User;
-use App\Notifications\Messages\GenericNotificationMessage;
 use App\Services\Helpers\NotificationsHelper;
 use Filament\Notifications\Actions\Action;
 use Filament\Notifications\Notification as DatabaseNotification;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Str;
-use NotificationChannels\Pushover\PushoverMessage;
 
 /**
  * Notifies a user that a product they track is back in stock.
  *
- * Reuses every notification channel configured for price alerts (mail,
- * database, Pushover, Gotify, Apprise, Telegram, Discord, ntfy).
+ * Reuses the notification channels configured for price alerts (mail and
+ * the in-app notification history).
  */
 class StockAlertNotification extends Notification
 {
@@ -78,46 +76,6 @@ class StockAlertNotification extends Notification
             'productName' => Str::limit(($this->product->title ?? 'Unknown product'), 100),
             'imgUrl' => $this->product?->image,
         ];
-    }
-
-    public function toPushover($notifiable)
-    {
-        return PushoverMessage::create($this->getSummary())
-            ->title($this->getTitle())
-            ->url($this->url->buy_url, __('View product'));
-    }
-
-    public function toGotify($notifiable)
-    {
-        return $this->genericMessage();
-    }
-
-    public function toApprise($notifiable)
-    {
-        return $this->genericMessage();
-    }
-
-    public function toTelegram($notifiable)
-    {
-        return $this->genericMessage();
-    }
-
-    public function toDiscord($notifiable)
-    {
-        return $this->genericMessage();
-    }
-
-    public function toNtfy($notifiable)
-    {
-        return $this->genericMessage();
-    }
-
-    protected function genericMessage(): GenericNotificationMessage
-    {
-        return GenericNotificationMessage::create($this->getSummary())
-            ->title($this->getTitle())
-            ->url($this->url->buy_url)
-            ->priority(5);
     }
 
     protected function getTitle(): string
