@@ -1,0 +1,23 @@
+.auth-page .fi-logo,
+.auth-page .fi-logo svg {
+    height: 35px;
+}
+
+.auth-page .fi-logo {
+    margin-bottom: 2rem;
+}
+
+.auth-bg {
+    &:before {
+        content: '';
+        background-color: rgba(white, 0.05);
+        backdrop-filter: blur(40px);
+        position: absolute;
+        inset: 0;
+        filter: hue-rotate(280deg);
+    }
+ }
+
+.auth-frame {
+    box-shadow: 0 1px 10px 6px rgba(0, 0, 0, 0.2) !important;
+}

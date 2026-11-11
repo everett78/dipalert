@@ -1,0 +1,159 @@
+name: price-buddy
+recipe: laravel
+
+# Basic config.
+config:
+  flavor: laravel
+  database: mariadb:11.2
+#  build:
+#    - composer install
+  env_file:
+    - .env
+
+# Additional lando commands.
+tooling:
+  build:
+    service: node
+    description: Run npm build
+    cmd:
+      - rm -rf /app/public/hot
+      - npm rebuild node-sass
+      - npm install
+      - npm run build
+  npm:
+    service: node
+    description: Runs a npm command
+  artisan:
+    service: appserver
+    description: Run a artisan command
+    cmd: php artisan
+  clear:
+    service: appserver
+    description: Clear all local caches and configs
+    cmd:
+      - rm bootstrap/cache/*.php
+      - php artisan optimize:clear
+      - php artisan config:clear
+      - php artisan cache:clear
+      - composer dump-autoload
+  watch:
+    service: node
+    description: watches changes to theme and recompile
+    cmd:
+      - kill $(ps aux | grep node | grep -v grep | awk '{print $2}') > /dev/null 2>&1 || true
+      - npm run dev -- --host --port 3000
+  prepare-storage:
+    service: appserver
+    description: Ensure storage dirs are all setup correctly (only run once after fresh clone)
+    cmd:
+      - mkdir -p storage/framework/{sessions,views}
+      - mkdir -p storage/framework/cache/data
+      - mkdir -p storage/app/public
+      - mkdir -p storage/logs
+      - chmod -R 777 /home/.composer
+      - ln -s ../storage/app/public public/storage
+      - echo "Done, set permissions with 'sudo chmod +w -R storage'"
+  xdebug-on:
+    description: Enable xdebug for php.
+    service: appserver
+    cmd: cp /app/docker/php/debug/docker-php-ext-xdebug.ini /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && pkill -USR2 php || true
+    user: root
+  xdebug-off:
+    description: Disable xdebug for php.
+    service: appserver
+    cmd: rm /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && pkill -USR2 php || true
+    user: root
+  coverage-on:
+    description: Enable code coverage for php.
+    service: appserver
+    cmd: cp /app/docker/php/debug/docker-php-ext-xdebug-coverage.ini /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini && pkill -USR2 php || true
+    user: root
+  phpcs-fix:
+    description: Fix CS errors
+    service: appserver
+    cmd: ./vendor/bin/pint
+  phpcs:
+    description: Fix CS errors
+    service: appserver
+    cmd:
+      - ./vendor/bin/pint --test
+      - ./vendor/bin/phpstan analyse
+  test:
+    description: Run tests
+    service: appserver
+    cmd:
+      - php artisan config:clear
+      - ./vendor/bin/pest -c /app/phpunit.xml
+  seed:
+    service: appserver
+    description: Full db schema setup and seed of content for dev
+    cmd:
+      - php artisan migrate:fresh --seed --seeder=Database\\Seeders\\DatabaseSeeder
+      - php artisan cache:clear
+
+# Additional services that get started with the project.
+services:
+  # MariaDB on this host's overlay/LXC filesystem rejects O_DIRECT + native AIO
+  # (EPERM "Operation not permitted" during large InnoDB commits). Use fsync.
+  database:
+    overrides:
+      environment:
+        MARIADB_EXTRA_FLAGS: '--innodb-use-native-aio=0 --innodb-flush-method=fsync --innodb-log-file-buffering=1 --innodb-doublewrite=0'
+  appserver:
+    api: 3
+    type: lando
+    overrides:
+      build:
+        context: .
+        dockerfile: docker/php.dockerfile
+    services:
+      command: /start-app.sh
+    scanner:
+      retry: 5
+  scraper:
+    type: lando
+    app_mount: false
+    overrides:
+      image: jez500/seleniumbase-scrapper:latest
+      ports:
+        - 3001:3000
+    services:
+      command: "/docker-entrypoint-api.sh"
+  node:
+    type: node:20
+    overrides:
+      ports:
+        - 3000:3000
+  tests_db:
+    type: laravel-mysql
+    creds:
+      user: laravel
+      password: laravel
+      database: laravel
+  phpmyadmin:
+    type: phpmyadmin
+    hosts:
+      - database
+      - tests_db
+    overrides:
+      environment:
+        PMA_USER: laravel
+        PMA_PASSWORD: laravel
+    scanner:
+      retry: 2
+  mailhog:
+    type: mailhog
+    portforward: true
+    hogfrom:
+      - appserver
+    scanner:
+      retry: 2
+
+# Routes to access additional services.
+proxy:
+  mailhog:
+    - mail.price-buddy.lndo.site
+  phpmyadmin:
+    - pma.price-buddy.lndo.site
+  scraper:
+    - scraper.price-buddy.lndo.site:3000

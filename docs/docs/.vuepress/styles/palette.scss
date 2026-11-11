@@ -1,0 +1,18 @@
+$theme-color-dark: #0d9488;
+$theme-color-light: #2dd4bf;
+
+html[data-theme=light] {
+    --vp-c-accent: #{$theme-color-dark};
+    --vp-c-accent-bg: #{$theme-color-dark};
+    --vp-c-accent-hover: #{$theme-color-light};
+}
+
+html[data-theme=dark] {
+    --vp-c-accent: #{$theme-color-light};
+    --vp-c-accent-bg: #{$theme-color-light};
+    --vp-c-accent-hover: #{$theme-color-dark};
+}
+
+a.secondary:hover {
+    --vp-c-accent-text: var(--vp-c-accent-hover);
+}

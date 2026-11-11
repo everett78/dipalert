@@ -1,0 +1,17 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/nesbot/carbon/extension.neon
+
+parameters:
+
+    paths:
+        - app/
+
+    # Level 10 is the highest level
+    level: 5
+
+    ignoreErrors:
+        - '#Call to an undefined .*method Illuminate\\Database\\Eloquent\\Builder.*currentUser\(\)#'
+        - '#Call to an undefined .*method Illuminate\\Database\\Eloquent\\Builder.*lowestPriceInDays\(\)#'
+        - '#Call to an undefined .*method Illuminate\\Database\\Eloquent\\Builder.*status\(\)#'
+        - '#Call to an undefined .*method Illuminate\\Contracts\\Database\\Eloquent\\Builder.*setFilters\(\)#'

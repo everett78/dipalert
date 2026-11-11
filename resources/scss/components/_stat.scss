@@ -1,0 +1,77 @@
+.pb-expandable-stat {
+    position: relative;
+
+    &__top {
+        display: flex;
+        align-items: stretch;
+    }
+
+    &__actions {
+        display: flex;
+
+        > a,
+        > button {
+            width: auto;
+        }
+
+        .fi-btn {
+            min-height: 2rem;
+            flex-grow: 1;
+            flex-shrink: 1;
+            flex-basis: 35%;
+
+            .fi-btn-label {
+                display: none;
+                white-space: nowrap;
+            }
+
+            &:hover {
+                .fi-btn-label {
+                    display: block;
+                }
+            }
+        }
+    }
+
+    &__chart,
+    &__card {
+        .expanded & {
+            border-bottom-left-radius: 0 !important;
+        }
+    }
+
+    &__context {
+        align-content: stretch;
+        align-items: stretch;
+        position: absolute;
+        top: 0;
+        right: 0;
+    }
+
+    &__context-button {
+        width: 2.5rem;
+        border-radius: 0 0.75rem 0.75rem 0;
+        display: flex;
+        justify-content: center;
+        align-items: end;
+        align-content: end;
+        padding-bottom: .75rem;
+
+        &.collapsed {
+            svg {
+                transform: rotate(180deg);
+            }
+        }
+
+        &:hover {
+            border-color: inherit;
+        }
+    }
+
+    canvas.h-6 {
+        max-height: 1.5rem;
+    }
+}
+
+
+

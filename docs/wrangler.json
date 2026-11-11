@@ -1,0 +1,15 @@
+{
+    "name": "pricebuddy-docs",
+    "route": {
+        "pattern": "pricebuddy.jez.me/*",
+        "zone_name": "jez.me"
+    },
+    "compatibility_date": "2025-02-11",
+    "assets": {
+        "directory": "./docs/docs/.vuepress/dist"
+    },
+    "build": {
+        "command": "npm install -D sass-embedded && npm run docs:build",
+        "cwd": "./docs"
+    }
+}

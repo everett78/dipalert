@@ -1,0 +1,751 @@
+<?php
+
+namespace Tests\Feature\Models;
+
+use App\Enums\StockStatus;
+use App\Models\Price;
+use App\Models\Product;
+use App\Models\Store;
+use App\Models\Url;
+use App\Models\User;
+use App\Notifications\StockAlertNotification;
+use App\Services\Helpers\CurrencyHelper;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use Tests\TestCase;
+use Tests\Traits\ScraperTrait;
+
+class UrlTest extends TestCase
+{
+    use RefreshDatabase;
+    use ScraperTrait;
+
+    const TEST_URL = 'https://example.com/product';
+
+    protected User $user;
+
+    protected Store $store;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->store = Store::factory()->createOne([
+            'domains' => [['domain' => parse_url(self::TEST_URL, PHP_URL_HOST)]],
+        ]);
+
+        $this->user = User::factory()->create();
+    }
+
+    public function test_user_is_required_to_create_url()
+    {
+        $this->mockScrape(10, 'test');
+
+        $this->expectException(AuthorizationException::class);
+
+        Url::createFromUrl(self::TEST_URL);
+    }
+
+    public function test_cannot_create_url_on_another_users_product()
+    {
+        $this->mockScrape(10, 'test');
+        $theirs = Product::factory()->create(['user_id' => User::factory()->create()->id]);
+
+        try {
+            Url::createFromUrl(self::TEST_URL, productId: $theirs->id, userId: $this->user->id);
+            $this->fail('Expected an AuthorizationException.');
+        } catch (AuthorizationException) {
+            $this->assertSame(0, $theirs->urls()->count());
+        }
+    }
+
+    public function test_create_from_url_with_valid_data()
+    {
+        $this->actingAs($this->user);
+
+        $scrapeData = [
+            'title' => 'Example Product',
+            'price' => 100,
+        ];
+
+        $this->mockScrape($scrapeData['price'], $scrapeData['title']);
+
+        $urlModel = Url::createFromUrl(self::TEST_URL);
+
+        $this->assertInstanceOf(Url::class, $urlModel);
+        $this->assertEquals(self::TEST_URL, $urlModel->url);
+        $this->assertInstanceOf(Store::class, $urlModel->store);
+        $this->assertEquals($scrapeData['title'], $urlModel->product->title);
+    }
+
+    public function test_create_from_url_strips_the_store_name_from_the_product_title()
+    {
+        $this->actingAs($this->user);
+
+        $this->store->update(['name' => 'JB Hi-Fi']);
+
+        $this->mockScrape(100, 'Sony WH-1000XM5 Wireless Headphones | JB Hi-Fi');
+
+        $urlModel = Url::createFromUrl(self::TEST_URL);
+
+        $this->assertInstanceOf(Url::class, $urlModel);
+        $this->assertEquals('Sony WH-1000XM5 Wireless Headphones', $urlModel->product->title);
+    }
+
+    public function test_create_from_url_with_invalid_data()
+    {
+        $this->mockScrape('', '');
+
+        $urlModel = Url::createFromUrl(self::TEST_URL);
+
+        $this->assertFalse($urlModel);
+    }
+
+    public function test_update_price_with_valid_data()
+    {
+        $product = Product::factory()->create();
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+        ]);
+
+        $this->mockScrape('$100', 'foo');
+
+        $priceModel = $url->updatePrice();
+
+        $this->assertInstanceOf(Price::class, $priceModel);
+        $this->assertEquals(100.0, $priceModel->price);
+        $this->assertEquals(100.0, $priceModel->unit_price);
+        $this->assertEquals(1, $priceModel->price_factor);
+    }
+
+    public function test_update_price_calculates_unit_price_with_factor()
+    {
+        $product = Product::factory()->create();
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+            'price_factor' => 6,
+        ]);
+
+        $this->mockScrape('$12', 'foo');
+
+        $priceModel = $url->updatePrice();
+
+        $this->assertInstanceOf(Price::class, $priceModel);
+        $this->assertEquals(12.0, $priceModel->price);
+        $this->assertEquals(2.0, $priceModel->unit_price);
+        $this->assertEquals(6, $priceModel->price_factor);
+    }
+
+    public function test_update_price_with_default_factor()
+    {
+        $product = Product::factory()->create();
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+        ]);
+
+        $priceModel = $url->updatePrice(50);
+
+        $this->assertInstanceOf(Price::class, $priceModel);
+        $this->assertEquals(50.0, $priceModel->price);
+        $this->assertEquals(50.0, $priceModel->unit_price);
+        $this->assertEquals(1, $priceModel->price_factor);
+    }
+
+    public function test_sync_stored_prices_for_current_factor_recalculates_existing_prices_without_creating_new_rows()
+    {
+        $product = Product::factory()
+            ->addUrlWithPrices(self::TEST_URL, [12, 18, 24], priceFactor: 6)
+            ->createOne();
+
+        $url = $product->urls()->firstOrFail();
+        $originalLatestPriceId = $url->prices()->latest('id')->value('id');
+
+        $url->update(['price_factor' => 12]);
+        $url->syncStoredPricesForCurrentFactor();
+        $url->product->refresh()->updatePriceCache();
+
+        $latestPrice = $url->prices()->latest('id')->first();
+
+        $this->assertCount(3, $url->prices);
+        $this->assertSame($originalLatestPriceId, $url->prices()->latest('id')->value('id'));
+        $this->assertSame(2.0, $latestPrice->unit_price);
+        $this->assertSame(12.0, $latestPrice->price_factor);
+        $this->assertSame(2.0, $url->product->fresh()->getPriceCache()->first()->getUnitPrice());
+    }
+
+    public function test_update_price_with_invalid_data()
+    {
+        $product = Product::factory()->create();
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+        ]);
+
+        $this->mockScrape('invalid', 'invalid');
+
+        $priceModel = $url->updatePrice();
+
+        $this->assertNull($priceModel);
+    }
+
+    public function test_update_price_does_not_save_an_unreadable_price_as_zero()
+    {
+        $product = Product::factory()->create();
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+        ]);
+
+        $this->assertNull($url->updatePrice('Price on request'));
+        $this->assertSame(0, $url->prices()->count());
+    }
+
+    public function test_update_price_reads_a_dot_decimal_on_a_comma_decimal_store()
+    {
+        $this->store->update(['settings' => array_merge($this->store->settings ?? [], [
+            'locale_settings' => ['locale' => 'fr_FR', 'currency' => 'EUR'],
+        ])]);
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => Product::factory()->create()->id,
+            'store_id' => $this->store->id,
+        ]);
+
+        $priceModel = $url->updatePrice('€319.00');
+
+        $this->assertInstanceOf(Price::class, $priceModel);
+        $this->assertEquals(319.0, $priceModel->price);
+    }
+
+    public function test_create_from_url_with_unavailable_product_and_no_price()
+    {
+        $this->actingAs($this->user);
+
+        $this->store->update([
+            'scrape_strategy' => array_merge($this->store->scrape_strategy->toArray(), [
+                'availability' => [
+                    'type' => 'selector',
+                    'value' => '.availability',
+                    'match' => [
+                        'out_of_stock' => ['type' => 'match', 'value' => 'OutOfStock'],
+                        'default' => 'in_stock',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->mockScrape('', 'Out of Stock Product', null, 'OutOfStock');
+
+        $urlModel = Url::createFromUrl(self::TEST_URL);
+
+        $this->assertInstanceOf(Url::class, $urlModel);
+        $this->assertSame(StockStatus::OutOfStock, $urlModel->availability);
+        $this->assertEquals('Out of Stock Product', $urlModel->product->title);
+        $this->assertCount(0, $urlModel->prices);
+        $this->assertCount(1, $urlModel->product->fresh()->getPriceCache());
+    }
+
+    public function test_create_from_url_with_missing_price_when_store_treats_it_as_out_of_stock()
+    {
+        $this->actingAs($this->user);
+        $this->store->update(['settings' => array_merge($this->store->settings ?? [], ['missing_price_out_of_stock' => true])]);
+
+        $this->mockScrape('', 'Out of Stock Product');
+
+        $urlModel = Url::createFromUrl(self::TEST_URL);
+
+        $this->assertInstanceOf(Url::class, $urlModel);
+        $this->assertSame(StockStatus::OutOfStock, $urlModel->availability);
+        $this->assertCount(0, $urlModel->prices);
+    }
+
+    public function test_create_from_url_with_missing_price_fails_when_store_setting_is_off()
+    {
+        $this->actingAs($this->user);
+
+        $this->mockScrape('', 'Out of Stock Product');
+
+        $this->assertFalse(Url::createFromUrl(self::TEST_URL));
+    }
+
+    public function test_missing_price_and_title_is_not_treated_as_out_of_stock()
+    {
+        $this->actingAs($this->user);
+        $this->store->update(['settings' => array_merge($this->store->settings ?? [], ['missing_price_out_of_stock' => true])]);
+
+        $this->mockScrape('', '');
+
+        $this->assertFalse(Url::createFromUrl(self::TEST_URL));
+    }
+
+    public function test_update_price_missing_price_marks_out_of_stock_when_store_setting_enabled()
+    {
+        $product = Product::factory()->create();
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+        ]);
+        $this->store->update(['settings' => array_merge($this->store->settings ?? [], ['missing_price_out_of_stock' => true])]);
+
+        $this->mockScrape('', 'foo');
+
+        $url->updatePrice();
+
+        $this->assertCount(0, $url->prices);
+        $this->assertSame(StockStatus::OutOfStock, $url->fresh()->availability);
+    }
+
+    public function test_update_price_unavailable_no_price_does_not_create_price()
+    {
+        $product = Product::factory()->create();
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+        ]);
+
+        $this->store->update([
+            'scrape_strategy' => array_merge($this->store->scrape_strategy->toArray(), [
+                'availability' => [
+                    'type' => 'selector',
+                    'value' => '.availability',
+                    'match' => [
+                        'out_of_stock' => ['type' => 'match', 'value' => 'OutOfStock'],
+                        'default' => 'in_stock',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->mockScrape('', 'foo', null, 'OutOfStock');
+
+        $priceModel = $url->updatePrice();
+
+        $this->assertNull($priceModel);
+        $this->assertCount(0, $url->prices);
+        $this->assertSame(StockStatus::OutOfStock, $url->fresh()->availability);
+    }
+
+    public function test_update_price_unavailable_with_existing_price_returns_latest_and_keeps_history()
+    {
+        // Regression: when a URL with an existing price history goes out of
+        // stock, `updatePrice` previously returned null. `Product::updatePrices`
+        // counts null returns as failures, which would surface as a "scrape
+        // error" on the product page for a product that is just out of stock.
+        // The latest known price should be returned so the parent doesn't
+        // consider this URL failed, and no new price row should be inserted.
+        $product = Product::factory()->create();
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+        ]);
+        /** @var Price $existing */
+        $existing = $url->prices()->create([
+            'price' => 12.5,
+            'unit_price' => 12.5,
+            'price_factor' => 1,
+            'store_id' => $this->store->id,
+        ]);
+
+        $this->store->update([
+            'scrape_strategy' => array_merge($this->store->scrape_strategy->toArray(), [
+                'availability' => [
+                    'type' => 'selector',
+                    'value' => '.availability',
+                    'match' => [
+                        'out_of_stock' => ['type' => 'match', 'value' => 'OutOfStock'],
+                        'default' => 'in_stock',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->mockScrape('', 'foo', null, 'OutOfStock');
+
+        $priceModel = $url->updatePrice();
+
+        $this->assertInstanceOf(Price::class, $priceModel);
+        $this->assertSame($existing->id, $priceModel->id);
+        $this->assertCount(1, $url->fresh()->prices);
+        $this->assertSame(StockStatus::OutOfStock, $url->fresh()->availability);
+    }
+
+    public function test_product_update_prices_is_successful_when_only_url_goes_out_of_stock()
+    {
+        // Regression for the same path at the product level: a product with a
+        // single URL that goes out of stock should not be reported as a
+        // failed scrape (which fires ScrapeFailNotification + UI error).
+        $product = Product::factory()->create();
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+        ]);
+        $url->prices()->create([
+            'price' => 9.99,
+            'unit_price' => 9.99,
+            'price_factor' => 1,
+            'store_id' => $this->store->id,
+        ]);
+
+        $this->store->update([
+            'scrape_strategy' => array_merge($this->store->scrape_strategy->toArray(), [
+                'availability' => [
+                    'type' => 'selector',
+                    'value' => '.availability',
+                    'match' => [
+                        'out_of_stock' => ['type' => 'match', 'value' => 'OutOfStock'],
+                        'default' => 'in_stock',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->mockScrape('', 'foo', null, 'OutOfStock');
+
+        $failedUrls = $product->fresh()->updatePrices();
+
+        $this->assertTrue($failedUrls->isEmpty());
+    }
+
+    public function test_update_price_unavailable_to_in_stock_creates_price_and_clears_availability()
+    {
+        $product = Product::factory()->create();
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+            'availability' => StockStatus::OutOfStock,
+        ]);
+
+        $this->store->update([
+            'scrape_strategy' => array_merge($this->store->scrape_strategy->toArray(), [
+                'availability' => [
+                    'type' => 'selector',
+                    'value' => '.availability',
+                    'match' => [
+                        'out_of_stock' => ['type' => 'match', 'value' => 'OutOfStock'],
+                        'default' => 'in_stock',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $this->mockScrape('$25', 'foo', null, null);
+
+        $priceModel = $url->updatePrice();
+
+        $this->assertInstanceOf(Price::class, $priceModel);
+        $this->assertEquals(25.0, $priceModel->price);
+        $this->assertNull($url->fresh()->availability);
+    }
+
+    public function test_back_in_stock_sends_notification_when_opted_in()
+    {
+        Notification::fake();
+
+        $product = Product::factory()->create([
+            'user_id' => $this->user->id,
+            'notify_in_stock' => true,
+        ]);
+
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+            'availability' => StockStatus::OutOfStock,
+        ]);
+
+        $this->setAvailabilityStrategy();
+
+        // Item is now in stock with a price.
+        $this->mockScrape('$25', 'foo', null, null);
+
+        $url->updatePrice();
+
+        $this->assertNull($url->fresh()->availability);
+        Notification::assertSentTo($this->user, StockAlertNotification::class);
+    }
+
+    public function test_back_in_stock_does_not_notify_when_not_opted_in()
+    {
+        Notification::fake();
+
+        $product = Product::factory()->create([
+            'user_id' => $this->user->id,
+            'notify_in_stock' => false,
+        ]);
+
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+            'availability' => StockStatus::OutOfStock,
+        ]);
+
+        $this->setAvailabilityStrategy();
+
+        $this->mockScrape('$25', 'foo', null, null);
+
+        $url->updatePrice();
+
+        Notification::assertNotSentTo($this->user, StockAlertNotification::class);
+    }
+
+    public function test_going_out_of_stock_does_not_send_back_in_stock_notification()
+    {
+        Notification::fake();
+
+        $product = Product::factory()->create([
+            'user_id' => $this->user->id,
+            'notify_in_stock' => true,
+        ]);
+
+        // Currently in stock (null availability).
+        $url = Url::factory()->createOne([
+            'url' => self::TEST_URL,
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+        ]);
+
+        $this->setAvailabilityStrategy();
+
+        // Now out of stock.
+        $this->mockScrape('', 'foo', null, 'OutOfStock');
+
+        $url->updatePrice();
+
+        $this->assertSame(StockStatus::OutOfStock, $url->fresh()->availability);
+        Notification::assertNotSentTo($this->user, StockAlertNotification::class);
+    }
+
+    /**
+     * Configure the store so the scraped `.availability` value maps to a stock status.
+     */
+    protected function setAvailabilityStrategy(): void
+    {
+        $this->store->update([
+            'scrape_strategy' => array_merge($this->store->scrape_strategy->toArray(), [
+                'availability' => [
+                    'type' => 'selector',
+                    'value' => '.availability',
+                    'match' => [
+                        'out_of_stock' => ['type' => 'match', 'value' => 'OutOfStock'],
+                        'default' => 'in_stock',
+                    ],
+                ],
+            ]),
+        ]);
+    }
+
+    public function test_unavailable_url_does_not_send_notifications_for_new_price()
+    {
+        Notification::fake();
+
+        $product = Product::factory()->create([
+            'user_id' => $this->user->id,
+            'notify_price' => 100.0,
+        ]);
+
+        $url = Url::factory()->createOne([
+            'product_id' => $product->id,
+            'store_id' => $this->store->id,
+            'availability' => StockStatus::OutOfStock,
+        ]);
+
+        Price::factory()->create([
+            'url_id' => $url->id,
+            'store_id' => $this->store->id,
+            'price' => 50.0,
+        ]);
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_product_name_short_returns_correct_value()
+    {
+        $product = Product::factory()->create(['title' => 'A long title that is too long, it should be trimmed to a limit so not so long']);
+        $url = Url::factory()->create(['product_id' => $product->id]);
+
+        $this->assertEquals('A long title that is...', $url->product_name_short);
+    }
+
+    public function test_store_name_returns_correct_value()
+    {
+        $store = Store::factory()->create(['name' => 'Example Store']);
+        $url = Url::factory()->create(['store_id' => $store->id]);
+
+        $this->assertEquals('Example Store', $url->store_name);
+    }
+
+    public function test_product_url_returns_correct_value()
+    {
+        $product = Product::factory()->create();
+        $url = Url::factory()->create(['product_id' => $product->id]);
+
+        $this->assertEquals($product->action_urls['view'], $url->product_url);
+    }
+
+    public function test_latest_price_formatted_returns_correct_value()
+    {
+        $url = Url::factory()->create();
+        $price = Price::factory()->create(['url_id' => $url->id, 'price' => 100]);
+
+        $this->assertEquals(CurrencyHelper::toString(100), $url->latest_price_formatted);
+    }
+
+    public function test_average_price_returns_correct_value()
+    {
+        $url = Url::factory()->create();
+        Price::factory()->create(['url_id' => $url->id, 'price' => 100]);
+        Price::factory()->create(['url_id' => $url->id, 'price' => 200]);
+
+        $this->assertEquals(CurrencyHelper::toString(150), $url->average_price);
+    }
+
+    public function test_affiliate_code_gets_added_to_url()
+    {
+        $url = Url::factory()->create(['url' => 'https://example.com/product?foo=bar#baz']);
+
+        config([
+            'affiliates.enabled' => true,
+            'affiliates.sites' => [
+                [
+                    'domains' => ['example.com'],
+                    'query_params' => ['ref' => '123'],
+                ],
+            ],
+        ]);
+
+        $this->assertEquals('https://example.com/product?foo=bar&ref=123#baz', $url->buy_url);
+    }
+
+    public function test_affiliate_urls()
+    {
+        $urls = [
+            'https://www.ebay.com.au/itm/315209278735' => 'https://www.ebay.com.au/itm/315209278735?mkrid=705-53470-19255-0&mkcid=1&campid=5339100273&siteid=15&toolid=10001&mkevt=1',
+            'https://www.amazon.com.au/dp/B08P3V5K7Y' => 'https://www.amazon.com.au/dp/B08P3V5K7Y?tag=pricebuddy-22',
+            'https://www.amazon.com/dp/B08P3V5K7Y' => 'https://www.amazon.com/dp/B08P3V5K7Y?tag=pricebuddy07-20',
+        ];
+
+        foreach ($urls as $original => $new) {
+            $urlModel = Url::factory()->create(['url' => $original]);
+            $this->assertSame($new, $urlModel->buy_url);
+        }
+    }
+
+    public function test_should_notify_on_price()
+    {
+        Price::withoutEvents(function () {
+            // Not previously notified.
+            $product = $this->createOneProductWithUrlAndPrices(prices: [10, 10, 10]);
+            /** @var Url $url */
+            $url = $product->urls()->first();
+            $url->prices->each(fn (Price $price) => $price->update(['notified' => false]));
+            $this->assertTrue($url->shouldNotifyOnPrice($url->prices()->latest()->first()));
+
+            // First price notified already.
+            $product = $this->createOneProductWithUrlAndPrices(prices: [10, 10, 10]);
+            /** @var Url $url */
+            $url = $product->urls()->first();
+            $url->prices->each(fn (Price $price) => $price->update(['notified' => false]));
+            $url->prices()->oldest()->first()->update(['notified' => true]);
+            $this->assertFalse($url->shouldNotifyOnPrice($url->prices()->latest()->first()));
+
+            // Price has changed, should re-notify.
+            $product = $this->createOneProductWithUrlAndPrices(prices: [10, 20, 10]);
+            /** @var Url $url */
+            $url = $product->urls()->first();
+            $url->prices->sortBy('created_at')
+                ->values()
+                ->each(fn (Price $price, int $idx) => $price->update(['notified' => $idx === 0]));
+            $this->assertTrue($url->shouldNotifyOnPrice($url->prices()->oldest()->first()));
+        });
+
+    }
+
+    public function test_change_url_re_resolves_store_and_keeps_history()
+    {
+        $this->actingAs($this->user);
+
+        $this->mockScrape(100, 'Example Product');
+        /** @var Url $url */
+        $url = Url::createFromUrl(self::TEST_URL, userId: $this->user->getKey());
+
+        // An extra historical price so we can prove the series is retained.
+        $url->prices()->create([
+            'price' => 90,
+            'unit_price' => 90,
+            'price_factor' => 1,
+            'store_id' => $this->store->getKey(),
+        ]);
+
+        // reorder() drops the relation's created_at ordering: both rows share a timestamp,
+        // so only an explicit id order matches the id-ordered assertion below.
+        $historyPriceIds = $url->prices()->reorder('id')->pluck('id')->all();
+        $this->assertCount(2, $historyPriceIds);
+
+        $newStore = Store::factory()->createOne([
+            'domains' => [['domain' => 'example2.com']],
+        ]);
+        $newUrl = 'https://example2.com/product';
+
+        $this->assertTrue($url->changeUrl($newUrl));
+
+        $url->refresh();
+
+        // URL re-pointed and store re-resolved from the new domain.
+        $this->assertSame($newUrl, $url->url);
+        $this->assertSame($newStore->getKey(), $url->store_id);
+
+        // The original history rows are untouched (retained on the same record).
+        $this->assertSame(
+            $historyPriceIds,
+            Price::whereIn('id', $historyPriceIds)->orderBy('id')->pluck('id')->all(),
+        );
+
+        // Exactly one fresh price was appended, recorded against the new store.
+        $this->assertSame(count($historyPriceIds) + 1, $url->prices()->count());
+        $newPrice = $url->prices()->whereNotIn('id', $historyPriceIds)->sole();
+        $this->assertSame($newStore->getKey(), $newPrice->store_id);
+    }
+
+    public function test_change_url_leaves_record_unchanged_when_url_cannot_resolve()
+    {
+        $this->actingAs($this->user);
+
+        $this->mockScrape(100, 'Example Product');
+        /** @var Url $url */
+        $url = Url::createFromUrl(self::TEST_URL, userId: $this->user->getKey());
+
+        $originalStoreId = $url->store_id;
+        $countBefore = $url->prices()->count();
+
+        // Domain with no matching store, and auto-create disabled so it cannot resolve.
+        $this->assertFalse($url->changeUrl('https://no-store-here.test/product', createStore: false));
+
+        $url->refresh();
+
+        $this->assertSame(self::TEST_URL, $url->url);
+        $this->assertSame($originalStoreId, $url->store_id);
+        $this->assertSame($countBefore, $url->prices()->count());
+    }
+
+    protected function createOneProductWithUrlAndPrices(string $url = 'https://example.com', array $prices = [10, 15, 20], array $attrs = []): Product
+    {
+        return Product::factory()
+            ->addUrlWithPrices($url, $prices)
+            ->createOne($attrs);
+    }
+}

@@ -1,0 +1,15 @@
+:root {
+    --logo-symbol: rgba(var(--primary-400), 1);
+    --logo-text-first: black;
+    --logo-text-second: black;
+}
+
+.dark {
+    --logo-text-first: white;
+    --logo-text-second: white;
+}
+
+.logo-full {
+    width: auto;
+    height: 25px;
+}

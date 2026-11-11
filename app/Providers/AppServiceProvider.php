@@ -1,0 +1,124 @@
+<?php
+
+namespace App\Providers;
+
+use App\Enums\NotificationMethods;
+use App\Models\Product;
+use App\Models\ProductSource;
+use App\Models\Store;
+use App\Models\User;
+use App\Policies\ProductPolicy;
+use App\Policies\ProductSourcePolicy;
+use App\Policies\StorePolicy;
+use App\Policies\UserPolicy;
+use App\Services\Helpers\NotificationsHelper;
+use App\Services\Helpers\QueueHelper;
+use App\Services\Helpers\SettingsHelper;
+use App\Services\Scrapers\Utf8WebScraperHttp;
+use Filament\Facades\Filament;
+use Filament\Navigation\MenuItem;
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Foundation\Console\AboutCommand;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\ServiceProvider;
+use Jez500\WebScraperForLaravel\WebScraperHttp;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        // Convert scraped pages to UTF-8 before they are cached (#203).
+        $this->app->bind(WebScraperHttp::class, Utf8WebScraperHttp::class);
+    }
+
+    public function boot(): void
+    {
+        $this->registerPolicies();
+        $this->registerFilamentSettings();
+        $this->setConfigFromAppSettings();
+        $this->registerAbout();
+        $this->authorizePackages();
+    }
+
+    protected function registerPolicies(): void
+    {
+        Gate::policy(Product::class, ProductPolicy::class);
+        Gate::policy(ProductSource::class, ProductSourcePolicy::class);
+        Gate::policy(Store::class, StorePolicy::class);
+        Gate::policy(User::class, UserPolicy::class);
+    }
+
+    protected function registerFilamentSettings(): void
+    {
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::HEAD_END,
+            fn (): string => Blade::render(
+                '@vite([\'resources/scss/app.scss\', \'resources/js/app.js\'])'.
+                '@include(\'body.js-settings\')'.
+                '<link rel="manifest" href="/manifest.json">'.
+                '<script src="/js/clipboard.js"></script>'
+            ),
+        );
+
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::SIDEBAR_FOOTER,
+            fn (): string => view('components.sidebar-footer', [
+                'content' => config('app.version', 'development'),
+            ]),
+        );
+
+        Filament::registerUserMenuItems([
+            MenuItem::make()
+                ->label(__('Account settings'))
+                ->url(fn () => '/admin/users/'.auth()->id().'/edit')
+                ->icon('heroicon-s-cog'),
+        ]);
+    }
+
+    protected function setConfigFromAppSettings(): void
+    {
+        // Email.
+        $mail = NotificationMethods::Mail->value;
+        if (NotificationsHelper::isEnabled($mail)) {
+            config([
+                'mail.default' => 'smtp',
+                'mail.mailers.smtp.host' => NotificationsHelper::getSetting($mail, 'smtp_host'),
+                'mail.mailers.smtp.port' => NotificationsHelper::getSetting($mail, 'smtp_port'),
+                'mail.mailers.smtp.username' => NotificationsHelper::getSetting($mail, 'smtp_user'),
+                'mail.mailers.smtp.password' => NotificationsHelper::getSetting($mail, 'smtp_password'),
+                'mail.mailers.smtp.encryption' => NotificationsHelper::getSetting($mail, 'encryption') ?: null,
+                'mail.from.address' => NotificationsHelper::getSetting($mail, 'from_address', 'hello@example.com'),
+            ]);
+        }
+
+        // Pushover.
+        $pushover = NotificationMethods::Pushover->value;
+        if (NotificationsHelper::isEnabled($pushover)) {
+            config([
+                'services.pushover.token' => NotificationsHelper::getSetting($pushover, 'token'),
+            ]);
+        }
+
+        // Logging.
+        config([
+            'logging.channels.db.days' => SettingsHelper::getSetting('log_retention_days', 7),
+        ]);
+    }
+
+    protected function registerAbout(): void
+    {
+        AboutCommand::add('PriceBuddy', fn () => [
+            'Version' => config('app.version', 'development'),
+            'Queue Worker' => QueueHelper::isRunning() ? 'Running' : 'Stopped',
+        ]);
+    }
+
+    protected function authorizePackages(): void
+    {
+        Gate::define('viewApiDocs', function (?User $user) {
+            return ! is_null($user);
+        });
+    }
+}

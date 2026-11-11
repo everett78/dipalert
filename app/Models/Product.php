@@ -1,0 +1,804 @@
+<?php
+
+namespace App\Models;
+
+use App\Dto\PriceCacheDto;
+use App\Enums\Statuses;
+use App\Enums\StockStatus;
+use App\Enums\Trend;
+use App\Events\NotifyPriceChangeEvent;
+use App\Filament\Actions\BaseAction;
+use App\Services\Helpers\CurrencyHelper;
+use App\Services\Helpers\SettingsHelper;
+use App\Services\Insights\ProductInsights;
+use App\Services\ScrapeUrl;
+use Carbon\Carbon;
+use Cron\CronExpression;
+use Database\Factories\ProductFactory;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+/**
+ * @property ?string $title
+ * @property ?string $title_short
+ * @property string $primary_image
+ * @property ?string $image
+ * @property array $action_urls
+ * @property ?string $view_url
+ * @property array $price_cache
+ * @property string $average_price
+ * @property string $trend
+ * @property EloquentCollection<Url> $urls
+ * @property EloquentCollection<Tag> $tags
+ * @property ?float $notify_price
+ * @property ?float $notify_percent
+ * @property bool $notify_in_stock
+ * @property bool $notify_on_change
+ * @property ?int $refresh_interval
+ * @property ?Carbon $next_check_at
+ * @property bool $paused
+ * @property ?User $user
+ * @property int $user_id
+ * @property array $price_aggregates
+ * @property array $urls_array
+ * @property array $ignored_urls
+ * @property array $ignored_search_urls
+ * @property float $current_price
+ * @property bool $is_last_scrape_successful
+ * @property bool $is_notified_price
+ * @property ?string $unit_of_measure
+ * @property Carbon $created_at
+ * @property string $first_scrape_date
+ */
+class Product extends Model
+{
+    /** @use HasFactory<ProductFactory> */
+    use HasFactory;
+
+    protected $guarded = [
+        'price',
+    ];
+
+    protected $hidden = [
+        'insights_cache',
+    ];
+
+    protected $casts = [
+        'status' => Statuses::class,
+        'ignored_urls' => 'array',
+        'price_cache' => 'array',
+        'insights_cache' => 'array',
+        'created_at' => 'datetime',
+        'favourite' => 'boolean',
+        'notify_in_stock' => 'boolean',
+        'notify_on_change' => 'boolean',
+        'next_check_at' => 'datetime',
+        'refresh_interval' => 'integer',
+        'paused' => 'boolean',
+    ];
+
+    public static function booted()
+    {
+        static::deleted(function (Product $product) {
+            // Delete all related urls, should cascade to prices.
+            $product->urls()->delete();
+        });
+
+        static::saving(function (Product $product) {
+            // Keep next_check_at in sync with the custom interval. Products without
+            // a custom interval follow the global schedule (no next_check_at).
+            if (is_null($product->refresh_interval)) {
+                $product->next_check_at = null;
+            } elseif ($product->isDirty('refresh_interval') || is_null($product->next_check_at)) {
+                // Newly given (or changed) a custom interval: make it due on the
+                // next run so the new cadence takes effect immediately.
+                $product->next_check_at = now();
+            }
+        });
+
+        static::updated(function (Product $product): void {
+            // A changed target price affects the insights target tracker; rebuild
+            // the cache out-of-band (queued) so it is correct without a new scrape.
+            if ($product->wasChanged('notify_price')) {
+                NotifyPriceChangeEvent::dispatch($product);
+            }
+        });
+    }
+
+    /**
+     * Push next_check_at out by the custom interval (plus a little jitter to
+     * stagger checks and avoid hammering a store). Saved quietly so it doesn't
+     * re-trigger the saving hook or model events.
+     */
+    public function scheduleNextCheck(): void
+    {
+        if (! $this->refresh_interval) {
+            return;
+        }
+
+        $jitter = random_int(0, (int) min((int) round($this->refresh_interval / 10), 300));
+
+        $this->forceFill([
+            'next_check_at' => now()->addSeconds($this->refresh_interval + $jitter),
+        ])->saveQuietly();
+    }
+
+    /**
+     * Estimated time of the next price check, for the live countdown.
+     *
+     * Custom-interval products use their stored next_check_at; products on the
+     * global schedule derive it from the scrape_schedule cron. Paused products
+     * have no upcoming check.
+     */
+    public function nextCheckEstimate(): ?Carbon
+    {
+        if ($this->paused) {
+            return null;
+        }
+
+        if ($this->refresh_interval && $this->next_check_at) {
+            return $this->next_check_at;
+        }
+
+        return $this->globalScheduleRun('next');
+    }
+
+    /**
+     * Start of the current check window, used as the progress-bar baseline so
+     * the bar fills as the next check approaches. Null when paused.
+     */
+    public function currentCheckPeriodStart(): ?Carbon
+    {
+        if ($this->paused) {
+            return null;
+        }
+
+        if ($this->refresh_interval && $this->next_check_at) {
+            return $this->next_check_at->copy()->subSeconds($this->refresh_interval);
+        }
+
+        return $this->globalScheduleRun('previous');
+    }
+
+    /**
+     * Coarse, rounded label for the upcoming check, e.g. "1h", "2d" or "<1h".
+     * Null when there is no scheduled check (paused / unscheduled).
+     */
+    public function nextCheckShortLabel(): ?string
+    {
+        $next = $this->nextCheckEstimate();
+
+        if (! $next) {
+            return null;
+        }
+
+        $seconds = $next->getTimestamp() - now()->getTimestamp();
+
+        if ($seconds <= 0) {
+            return __('due');
+        }
+
+        if ($seconds >= 3600) {
+            $hours = (int) round($seconds / 3600);
+
+            // Once the rounded hours reach a full day, show days so we never
+            // render "24h" instead of "1d".
+            return $hours >= 24
+                ? ((int) round($seconds / 86400)).'d'
+                : $hours.'h';
+        }
+
+        return '<1h';
+    }
+
+    /**
+     * Resolve the next/previous run of the global scrape_schedule cron.
+     */
+    protected function globalScheduleRun(string $direction): ?Carbon
+    {
+        $expression = SettingsHelper::getSetting('scrape_schedule', '0 6 * * *');
+
+        try {
+            $cron = new CronExpression($expression);
+
+            return Carbon::instance(
+                $direction === 'previous' ? $cron->getPreviousRunDate() : $cron->getNextRunDate()
+            );
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /***************************************************
+     * Relationships.
+     **************************************************/
+
+    /**
+     * Product has many urls.
+     */
+    public function urls(): HasMany
+    {
+        return $this->hasMany(Url::class);
+    }
+
+    /**
+     * Product has many users.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Product has many prices through urls.
+     */
+    public function prices(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Price::class,
+            Url::class,
+            'product_id', // Foreign key on the urls table...
+            'url_id', // Foreign key on the prices table...
+            'id', // Local key on the product table...
+            'id' // Local key on the prices table...
+        );
+    }
+
+    /**
+     * Product has many stores through urls.
+     */
+    public function stores(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Store::class,
+            Url::class,
+            'product_id', // Foreign key on the urls table...
+            'id', // Foreign key on the store table...
+            'id', // Local key on the product table...
+            'store_id' // Local key on the stores table...
+        );
+    }
+
+    public function tags(): MorphToMany
+    {
+        return $this->morphToMany(Tag::class, 'taggable');
+    }
+
+    /***************************************************
+     * Scopes.
+     **************************************************/
+
+    /**
+     * Scope to only published products.
+     */
+    public function scopePublished(EloquentBuilder $query): EloquentBuilder
+    {
+        return $query->where('status', Statuses::Published);
+    }
+
+    /**
+     * Scope to only favoured products.
+     */
+    public function scopeFavourite(EloquentBuilder $query, bool $favourite = true): EloquentBuilder
+    {
+        return $query->where('favourite', $favourite);
+    }
+
+    /**
+     * Scope to only current user.
+     */
+    public function scopeCurrentUser(EloquentBuilder $query): EloquentBuilder
+    {
+        return $query->where('user_id', auth()->id());
+    }
+
+    /**
+     * Scope the lowest price in days.
+     */
+    public function scopeLowestPriceInDays(EloquentBuilder $query, int $days = 7): EloquentBuilder
+    {
+        return $query->whereHas('prices', function ($priceQuery) use ($days) {
+            $priceQuery
+                ->where('prices.created_at', '>=', Carbon::now()->subDays($days)->startOfDay())
+                ->where('prices.created_at', '<', Carbon::now()->startOfDay())
+                ->where('prices.price', '>', 0)
+                ->whereColumn('current_price', '<', 'prices.price');
+        });
+    }
+
+    /***************************************************
+     * Attributes.
+     **************************************************/
+
+    /**
+     * Price trend for lowest priced store.
+     */
+    public function trend(): Attribute
+    {
+        return Attribute::make(
+            get: function (): string {
+                if ($this->current_price <= 0) {
+                    return Trend::None->value;
+                }
+
+                return Trend::calculateTrend(
+                    $this->current_price,
+                    $this->getPriceCacheAggregate('avg'),
+                    $this->getPriceCacheAggregate('min'),
+                );
+            },
+        );
+    }
+
+    /**
+     * Does the product have a price history.
+     */
+    public function hasHistory(): Attribute
+    {
+        return Attribute::make(
+            get: function (): bool {
+                return $this->trend !== Trend::None->value;
+            },
+        );
+    }
+
+    /**
+     * Price trend for lowest priced store.
+     */
+    public function priceAggregates(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): Collection => collect(['max', 'avg', 'min'])
+                ->mapWithKeys(fn ($method) => [$method => $this->getPriceCacheAggregate($method)])
+                ->filter(fn ($value) => $value > 0)
+                ->mapWithKeys(fn ($value, $method) => [$method => CurrencyHelper::toString($value)])
+        );
+    }
+
+    /**
+     * Get main image with fallback.
+     */
+    public function getPrimaryImageAttribute(): string
+    {
+        return empty($this->image)
+            ? asset('/images/placeholder.png')
+            : $this->image;
+    }
+
+    /**
+     * Short version of the product title.
+     */
+    public function titleShort(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => Str::limit($this->title, 20)
+        );
+    }
+
+    /**
+     * Get urls array.
+     */
+    public function urlsArray(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => $this->urls->pluck('url')->toArray()
+        );
+    }
+
+    /**
+     * Get urls array.
+     */
+    public function ignoredSearchUrls(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => collect($this->ignored_urls)->merge($this->urls_array)->unique()->values()->toArray()
+        );
+    }
+
+    /**
+     * Were all the last scrapes successful.
+     */
+    public function isLastScrapeSuccessful(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value): bool => $this->getPriceCache()
+                ->filter(fn (PriceCacheDto $price) => $price->isLastScrapeSuccessful())
+                ->count() === $this->getPriceCache()->count()
+        );
+    }
+
+    /**
+     * Does lowest price match notification.
+     */
+    public function isNotifiedPrice(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value): bool => $this->shouldNotifyOnPrice(new Price(['price' => $this->current_price]))
+        );
+    }
+
+    /**
+     * Get the view url for the product.
+     */
+    public function getViewUrlAttribute(): ?string
+    {
+        return $this->action_urls['view'] ?? null;
+    }
+
+    /**
+     * Get key urls for the product.
+     */
+    public function getActionUrlsAttribute(): array
+    {
+        return $this->getKey()
+            ? [
+                'edit' => route(BaseAction::ROUTE_NAMESPACE.'products.edit', $this, false),
+                'view' => route(BaseAction::ROUTE_NAMESPACE.'products.view', $this, false),
+                'fetch' => route(BaseAction::ROUTE_NAMESPACE.'products.fetch', $this, false),
+            ]
+            : [];
+    }
+
+    public function getFirstScrapeDateAttribute(): string
+    {
+        return $this->getPriceCache()
+            ->map(fn (PriceCacheDto $price) => $price->getFirstDate())
+            ->unique()
+            ->values()
+            ->sort()
+            ->first() ?? $this->created_at->toDateTimeString();
+    }
+
+    /**
+     * Truncate long titles and strip the site name noise stores append to them.
+     */
+    public function title(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($v) => ScrapeUrl::preSaveTruncate($v),
+            set: fn ($v) => ScrapeUrl::preSaveTruncate(ScrapeUrl::preSaveCleanTitle($v))
+        );
+    }
+
+    /**
+     * Replace long images with null.
+     */
+    public function image(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($v) => $v,
+            set: fn ($v) => ScrapeUrl::preSaveMaxLength($v)
+        );
+    }
+
+    /***************************************************
+     * Helpers.
+     **************************************************/
+
+    /**
+     * Get the price cache for this product.
+     *
+     * @return Collection<PriceCacheDto>
+     */
+    public function getPriceCache(): Collection
+    {
+        return collect($this->price_cache)
+            ->sort(function (array $left, array $right): int {
+                $leftStatus = StockStatus::fromScrapedValue($left['availability'] ?? null)->getSortOrder();
+                $rightStatus = StockStatus::fromScrapedValue($right['availability'] ?? null)->getSortOrder();
+
+                if ($leftStatus !== $rightStatus) {
+                    return $leftStatus <=> $rightStatus;
+                }
+
+                $leftPrice = (float) data_get($left, 'unit_price', data_get($left, 'price', 0));
+                $rightPrice = (float) data_get($right, 'unit_price', data_get($right, 'price', 0));
+
+                return $leftPrice <=> $rightPrice;
+            })
+            ->map(fn ($price) => PriceCacheDto::fromArray($price))
+            ->values();
+    }
+
+    /**
+     * Get the price aggregate for this product via getPriceCache().
+     */
+    public function getPriceCacheAggregate(string $method = 'avg', ?int $urlId = null): float|int
+    {
+        $cache = $this->getPriceCache();
+
+        if ($urlId) {
+            $cache = $cache->filter(fn (PriceCacheDto $price) => $price->getUrlId() === $urlId);
+        }
+
+        $values = $cache->map(fn (PriceCacheDto $price) => $price->getHistory()->values()->toArray())
+            ->flatten()
+            ->filter(fn ($value) => $value > 0);
+
+        return $values->isEmpty() ? 0 : round($values->{$method}(), 2);
+    }
+
+    /**
+     * Build a price cache array.
+     */
+    public function buildPriceCache(): Collection
+    {
+        $history = $this->getPriceHistory();
+
+        // Include out-of-stock URLs that have no price history (e.g. price 0).
+        /** @var EloquentCollection<int, Url> $outOfStockUrls */
+        $outOfStockUrls = $this->urls()
+            ->whereNotNull('availability')
+            ->whereNotIn('id', $history->keys())
+            ->with('store')
+            ->get();
+
+        /** @var EloquentCollection<int, Url> $urls */
+        $urls = $this->urls()->whereIn('id', $history->keys())->with('store')->get()->merge($outOfStockUrls);
+
+        /** @var Collection<int, array<string, mixed>> $priceCache */
+        $priceCache = $urls
+            ->filter(function (Url $url): bool {
+                return $url->store !== null;
+            })
+            ->map(function (Url $url) use ($history): array {
+                /** @var Collection $urlHistory */
+                $urlHistory = $history->get($url->getKey(), collect());
+                /** @var Store $store */
+                $store = $url->store;
+
+                // Get last scraped price.
+                /** @var ?Price $lastScrapedPrice */
+                $lastScrapedPrice = $url->prices()->latest('id')->first();
+                $lastScrapedTimestamp = $lastScrapedPrice?->created_at;
+
+                // Build trend, current price vs average price (skip for URLs with no history).
+                $trend = $urlHistory->isEmpty()
+                    ? Trend::None->value
+                    : Trend::calculateTrend(
+                        $urlHistory->last(),
+                        $urlHistory->values()->avg(),
+                        $urlHistory->values()->min(),
+                    );
+
+                // Build output suitable for dto.
+                return [
+                    'store_id' => $store->getKey(),
+                    'store_name' => $store->name,
+                    'url_id' => $url->getKey(),
+                    'url' => $url->buy_url,
+                    'trend' => $trend,
+                    'price' => $urlHistory->isEmpty() ? 0 : $urlHistory->last(),
+                    'unit_price' => $lastScrapedPrice->unit_price ?? ($urlHistory->isEmpty() ? 0 : $urlHistory->last()),
+                    'price_factor' => ($f = $url->price_factor ?: 1) == (int) $f ? (int) $f : $f,
+                    'history' => $urlHistory->toArray(),
+                    'last_scrape' => $lastScrapedTimestamp?->toDateTimeString(),
+                    'locale' => $store->locale,
+                    'currency' => $store->currency,
+                    'unit_of_measure' => $this->unit_of_measure,
+                    'availability' => $url->getAvailabilityStatus()?->value,
+                ];
+            })
+            ->sort(function ($left, $right): int {
+                $leftStatus = StockStatus::fromScrapedValue($left['availability'] ?? null)->getSortOrder();
+                $rightStatus = StockStatus::fromScrapedValue($right['availability'] ?? null)->getSortOrder();
+
+                if ($leftStatus !== $rightStatus) {
+                    return $leftStatus <=> $rightStatus;
+                }
+
+                $leftPrice = (float) data_get($left, 'unit_price', data_get($left, 'price', 0));
+                $rightPrice = (float) data_get($right, 'unit_price', data_get($right, 'price', 0));
+
+                return $leftPrice <=> $rightPrice;
+            })
+            ->values();
+
+        return $priceCache;
+    }
+
+    public function getAggregateRange(): array
+    {
+        return once(function () {
+            $dailyPrices = [];
+
+            $this->getPriceCache()
+                ->each(function (PriceCacheDto $price) use (&$dailyPrices) {
+                    $price->getHistory()
+                        ->each(function ($price, $date) use (&$dailyPrices) {
+                            $dailyPrices[$date][] = $price;
+                        });
+                });
+
+            $data = [];
+            foreach ($dailyPrices as $date => $prices) {
+                $min = min($prices);
+                $max = max($prices);
+                $avg = round((array_sum($prices) / count($prices)), 2);
+
+                $data['max'][$date] = $max - $avg;
+                $data['avg'][$date] = $avg - $min;
+                $data['min'][$date] = $min;
+            }
+
+            return $data;
+        });
+    }
+
+    public function getAllPricesQuery(): Builder
+    {
+        return DB::table('prices')
+            ->select(
+                'prices.id',
+                'prices.price',
+                'prices.unit_price',
+                'prices.price_factor',
+                'prices.created_at',
+                'urls.id as url_id',
+                'urls.store_id'
+            )
+            ->join('urls', 'prices.url_id', '=', 'urls.id')
+            ->where('urls.product_id', $this->id)
+            ->orderByDesc('prices.created_at');
+    }
+
+    /**
+     * Update all prices for this product.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, Url> the URLs that failed to scrape (empty = full success)
+     */
+    public function updatePrices(): \Illuminate\Database\Eloquent\Collection
+    {
+        $failed = $this->urls
+            ->filter(fn (Url $url) => $url->updatePrice() === null) // @phpstan-ignore-line
+            ->values();
+
+        $this->updatePriceCache();
+        $this->updateInsightsCache();
+
+        return $failed; // @phpstan-ignore-line
+    }
+
+    /**
+     * Build the materialized insights payload for this product.
+     *
+     * @return array<string, mixed>
+     */
+    public function buildInsightsCache(): array
+    {
+        return ProductInsights::build($this)->toArray();
+    }
+
+    /**
+     * Recompute and persist the insights cache. Heavy: rebuilds the full
+     * insights tree (a year of price history + all calculators).
+     */
+    public function updateInsightsCache(): void
+    {
+        // Saved quietly so a pure cache write doesn't re-trigger the saving hook
+        // (which manages next_check_at) or the updated hook.
+        $this->forceFill(['insights_cache' => $this->buildInsightsCache()])->saveQuietly();
+    }
+
+    /**
+     * Update the price cache for this product.
+     */
+    public function updatePriceCache(): void
+    {
+        $priceCache = $this->buildPriceCache()->toArray();
+        $currentPrice = collect($priceCache)
+            ->first(fn (array $item) => StockStatus::fromScrapedValue($item['availability'] ?? null)->isUnavailable() === false)['unit_price'] ?? 0;
+
+        $this->update(['price_cache' => $priceCache, 'current_price' => $currentPrice]);
+    }
+
+    /**
+     * Get the price history for this product.
+     */
+    public function getPriceHistory(string $column = 'price'): Collection
+    {
+        $priceColumn = $column === 'unit_price' ? 'unit_price' : 'price';
+
+        return $this->getAllPricesQuery()
+            ->whereDate('prices.created_at', '>=', now()->subYear())
+            ->where('prices.price', '>', 0)
+            ->orderBy('prices.created_at')
+            ->get()
+            ->groupBy('url_id')
+            ->mapWithKeys(function ($prices, int $storeId) use ($priceColumn) {
+                // All price entries for the store.
+                $storeHistory = $prices->sortBy('created_at')
+                    ->groupBy('created_at')
+                    ->mapWithKeys(fn ($prices, string $date) => [
+                        Carbon::parse($date)->toDateString() => $prices->pluck($priceColumn)->min(),
+                    ]);
+
+                // If only one price, extend back one day.
+                if ($storeHistory->count() === 1) {
+                    $storeHistory = $this->extendSinglePriceHistory($storeHistory);
+                }
+
+                return [$storeId => $storeHistory->sortKeys()];
+            });
+    }
+
+    /**
+     * If we only have one price history, extend it back one day.
+     */
+    protected function extendSinglePriceHistory(Collection $history): Collection
+    {
+        return $history->put(
+            Carbon::parse($history->keys()->first())->subDay()->toDateString(),
+            $history->values()->first()
+        );
+    }
+
+    /**
+     * Get the cached price history for this product.
+     */
+    public function getPriceHistoryCached(string $column = 'price'): Collection
+    {
+        if ($column === 'unit_price') {
+            return $this->getPriceHistory('unit_price');
+        }
+
+        return $this->getPriceCache()->mapWithKeys(fn (PriceCacheDto $price) => [
+            $price->getUrlId() => $price->getHistory(),
+        ]);
+    }
+
+    public function shouldNotifyOnPrice(Price $price): bool
+    {
+        $priceValue = (float) $price->price;
+
+        // Check if price is less than notify price.
+        if (! empty($this->notify_price) && $priceValue <= (float) $this->notify_price) {
+            return true;
+        }
+
+        if (! empty($this->notify_percent)) {
+            // Get first price.
+            /** @var ?Price $firstPriceModel */
+            $firstPriceModel = $this->prices()->oldest('prices.created_at')->first();
+            $firstPrice = $firstPriceModel?->price;
+
+            // No first price, can't calculate percent.
+            if (is_null($firstPrice)) {
+                return false;
+            }
+
+            // Calculate percent.
+            $notifyPrice = $firstPrice - ($firstPrice * ($this->notify_percent / 100));
+
+            // Check if percent is greater than notify percent.
+            return $priceValue <= $notifyPrice;
+        }
+
+        return false;
+    }
+
+    /**
+     * Notify on every change from the previous price of the same URL, up or down (#212).
+     */
+    public function shouldNotifyOnPriceChange(Price $price): bool
+    {
+        if (! $this->notify_on_change) {
+            return false;
+        }
+
+        $previous = $price->url?->previousPrice($price);
+
+        return $previous !== null && round((float) $previous->price, 2) !== round((float) $price->price, 2);
+    }
+}

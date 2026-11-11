@@ -1,0 +1,144 @@
+# Installation
+
+The recommended way to install PriceBuddy is via Docker. This will ensure that all 
+dependencies are installed and configured correctly. A `docker-compose.yml` file is
+provided to make this easy.
+
+Pre-built docker images can be found on Docker Hub for [PriceBuddy](https://hub.docker.com/r/jez500/pricebuddy)
+and [Seleniumbase Scrapper](https://hub.docker.com/r/jez500/seleniumbase-scrapper).
+
+## Quick start
+
+```shell
+mkdir pricebuddy
+cd pricebuddy
+wget https://raw.githubusercontent.com/jez500/pricebuddy/main/docker-compose.yml
+touch .env
+docker compose up -d
+```
+
+Then visit `http://localhost:8080` in your browser. The default username is 
+`admin@example.com` and the default password is `admin`.
+
+NOTES:
+* You should look at the `docker-compose.yml` to ensure you are happy with the default
+  settings, ports, environment variables, etc.
+* If you are getting a 500 error, it is likely due to a missing `.env` file. You can
+  create an empty one next to the `docker-compose.yml` file with `touch .env`.
+
+## Database
+
+The docker compose file includes a mysql database. You can use an external database if
+you prefer, see [Laravel documentation](https://laravel.com/docs/11.x/database#introduction)
+for supported databases. 
+
+The docker image includes `mysql` and `pgsql` drivers. Note `sqllite` is not supported 
+due to the use of `json` columns.
+
+### MySQL binary logs
+
+MySQL 8 writes binary logs (`binlog.000001`, `binlog.000002` and so on) by default
+and keeps them for 30 days. PriceBuddy does not need them, and they can use many GB
+of disk. The `docker-compose.yml` turns them off with `command: --skip-log-bin`
+on the `database` service.
+
+Without binary logs you cannot do a point-in-time recovery from them. If your backups
+use the binary logs, remove `command: --skip-log-bin` and keep logging on. Use the
+`PURGE BINARY LOGS` command below to control the disk use instead.
+
+If your `docker-compose.yml` is older and does not have this line:
+
+1. Add `command: --skip-log-bin` to the `database` service.
+2. Run `docker compose up -d` to recreate the database container.
+
+MySQL does not remove the old log files when logging is off. Removing them is optional.
+It frees the disk space, but it also removes the recovery history in those files.
+To remove them:
+
+```shell
+docker compose exec database sh -c 'rm -f /var/lib/mysql/binlog.*'
+```
+
+Do not delete these files while binary logging is still on. In that case, remove
+them through MySQL instead. This command removes the logs that are older than now.
+It keeps the log that MySQL is writing to:
+
+```shell
+docker compose exec database mysql -uroot -proot -e "PURGE BINARY LOGS BEFORE NOW();"
+```
+
+These commands use the root password from the default `docker-compose.yml`.
+Change `-proot` if you use a different password.
+
+## Persistent storage / volumes
+
+The docker compose file includes volumes for the database and the app. Not much is 
+stored in the app volume so it won't need a lot of space.
+
+## Environment variables
+
+You can refer to [.env.example](https://github.com/laravel/laravel/blob/11.x/.env.example)
+file for the environment variables that can be set.
+
+If you just use the variables set in the docker compose file, you should be good to go.
+
+### URL matching
+
+PriceBuddy decides whether two URLs point at the same product page by building a
+normalised key: the host without `www.`, the path, and any query parameters that are not
+known tracking noise. The defaults live in `config/url_matching.php` and cover the common
+networks (`utm_*`, `gclid`, `fbclid`, Amazon's `ref_`/`pd_rd_*`, and so on).
+
+If a store you track uses a tracking parameter that is not covered, append to the list:
+
+```dotenv
+URL_MATCHING_TRACKING_PARAMS_EXTRA=mystoreparam,anotherparam
+URL_MATCHING_TRACKING_PARAM_PREFIXES_EXTRA=track_
+```
+
+Both variables **add to** the defaults rather than replacing them. To remove a default,
+edit `config/url_matching.php` directly.
+
+> **Important:** the normalised key is stored on each URL when it is saved. After
+> changing either variable, run `php artisan urls:renormalize` to rebuild the stored
+> keys. Without it, existing URLs keep the old key and matching will silently miss.
+
+## Reverse proxy configuration
+
+If you are using a reverse proxy (eg nginx) to access the app, you may have issues with
+the CSS and JS not loading. This is due to the app not being able to determine the
+correct URL to use. You can fix this by setting the `APP_URL` and `ASSET_URL` environment
+variables to the correct URL.
+
+### HTTPS / SSL-terminating proxies
+
+If your proxy terminates SSL (public HTTPS, but HTTP between the proxy and the
+container), the app trusts the proxy's forwarded headers by default (`TRUSTED_PROXIES=*`),
+so `X-Forwarded-Proto: https` is honoured and absolute URLs (such as the logout form)
+are generated over HTTPS. Ensure your proxy forwards `X-Forwarded-Proto` and, for
+HTTPS-only setups, set `SESSION_SECURE_COOKIE=true`.
+
+To restrict which proxies are trusted, set `TRUSTED_PROXIES` to a comma-separated list
+of proxy IPs instead of `*`.
+
+## Debugging install
+
+The `docker-compose.yml` file has been tested to get you up and running quickly. You 
+should create an `.env` file next to the docker-compose file otherwise docker will
+create a directory. The installation should setup the database schema, add default 
+content and users.
+
+If you have any issues, you can run the following commands to see what is happening:
+
+```shell
+docker compose exec -it app cat /app/storage/logs/laravel.log
+```
+
+You can also enable debugging via environment variables:
+
+```shell
+APP_ENV=local
+APP_DEBUG=true
+```
+
+

@@ -1,0 +1,64 @@
+# Env
+.env
+.env.backup
+.env.production
+
+# Storage
+/public/storage
+/storage/*.key
+/storage/pail
+/storage/logs
+
+# Deps
+/node_modules
+/docs/node_modules
+/docs/public/node_modules
+/vendor
+
+# Build
+npm-debug.log
+yarn-error.log
+/public/build
+/public/hot
+Homestead.json
+Homestead.yaml
+auth.json
+
+# Tests and CI
+/.phpunit.cache
+.phpunit.result.cache
+.phpactor.json
+
+# DB Dumps
+*.sql
+*.sql.*
+database/*.sqlite
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# IDE
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+/packages
+/core
+/scratch
+
+# AI
+.junie
+.ai/mcp
+.claude
+.agents
+.mcp.json
+.codex
+AGENTS.md
+CLAUDE.md
+.output.txt
+.ai/mcp
+docs/superpowers
+.superpowers/

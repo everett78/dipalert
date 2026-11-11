@@ -1,0 +1,108 @@
+
+.fi-wi-stats-overview-stat-description-icon,
+.fi-wi-stats-overview-stat-description {
+    margin-bottom: .5rem;
+}
+
+.dark .fi-btn-color-primary .fi-btn-icon,
+.dark .fi-btn-color-primary {
+    color: rgba(var(--gray-950), var(--tw-bg-opacity, 1)) !important;
+}
+
+.product-view-image .fi-section-content {
+    padding: 0;
+}
+
+.fi-page {
+    > section:first-child {
+        @media screen and (max-width: 600px) {
+            padding-top: 1rem;
+        }
+
+        .fi-header-heading {
+            @media screen and (max-width: 600px) {
+                padding-bottom: .5rem;
+            }
+        }
+    }
+}
+
+.fi-section-header-heading {
+    font-weight: 700 !important;
+}
+
+@media screen and (max-width: 640px) {
+    .fi-header {
+        gap: 0 !important;
+        margin-bottom: -1rem;
+        padding-top: .5rem;
+
+        .fi-ac {
+            position: fixed;
+            z-index: 25;
+            inset: 0;
+            top: auto;
+            background: white;
+            display: flex;
+            justify-items: stretch;
+            overflow-x: auto;
+            gap: 0;
+            box-shadow: -10px 0 5px 0 rgba(black, .15);
+
+            .dark & {
+                background-color: rgba(var(--gray-900), var(--tw-bg-opacity, 1));
+            }
+
+            > * {
+                flex: 1;
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            .fi-btn {
+                padding: .75rem .5rem;
+
+                svg,
+                .fi-btn-label {
+                    opacity: .7;
+                }
+            }
+        }
+    }
+}
+
+@media screen and (min-width: 640px) {
+    .fi-header {
+        .fi-ac {
+            padding-left: 2rem;
+        }
+    }
+
+    // Product titles wrap over several lines, so keep the actions level with the first line
+    // instead of floating in the middle of the heading (Filament defaults to sm:items-center).
+    .product-view .fi-header {
+        align-items: flex-start;
+    }
+}
+
+@media screen and (max-width: 640px) {
+    .fi-main {
+        padding-bottom: 3rem;
+    }
+}
+
+
+
+
+
+.phiki { // language-html github-dark
+    padding: 1rem;
+    border-radius: .5rem;
+    overflow-y: auto;
+    font-size: .9em;
+
+    .github-dark & {
+        border: 1px solid #555;
+    }
+
+}

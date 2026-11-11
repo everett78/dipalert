@@ -1,0 +1,45 @@
+:root {
+    --font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+.vp-site-logo {
+    --navbar-line-height: 25px;
+    margin-top: 6px;
+}
+
+.vp-site-name {
+    display: none !important;
+}
+
+h1, h2, h3 {
+    &, a {
+        font-weight: 800;
+    }
+}
+
+.vp-hero {
+    #main-title {
+        display: none;
+    }
+
+    .vp-hero-actions,
+    .vp-hero-description,
+    .vp-hero-image {
+        text-align: left;
+        margin-left: 0;
+        justify-content: start;
+    }
+
+    .vp-hero-image {
+        max-height: 50px;
+
+
+        @media (max-width: 719px) {
+            max-height: 30px;
+        }
+    }
+
+    .vp-hero-actions {
+        margin-bottom: 3.5rem;
+    }
+}
