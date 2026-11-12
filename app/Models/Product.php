@@ -46,6 +46,9 @@ use Illuminate\Support\Str;
  * @property ?float $notify_percent
  * @property bool $notify_in_stock
  * @property bool $notify_on_change
+ * @property ?string $notify_change_percent
+ * @property ?string $notify_change_amount
+ * @property ?string $notify_change_direction
  * @property ?int $refresh_interval
  * @property ?Carbon $next_check_at
  * @property bool $paused
@@ -66,6 +69,12 @@ class Product extends Model
     /** @use HasFactory<ProductFactory> */
     use HasFactory;
 
+    public const string CHANGE_DOWN = 'down';
+
+    public const string CHANGE_UP = 'up';
+
+    public const string CHANGE_BOTH = 'both';
+
     protected $guarded = [
         'price',
     ];
@@ -83,6 +92,9 @@ class Product extends Model
         'favourite' => 'boolean',
         'notify_in_stock' => 'boolean',
         'notify_on_change' => 'boolean',
+        'notify_change_percent' => 'decimal:2',
+        'notify_change_amount' => 'decimal:2',
+        'notify_change_direction' => 'string',
         'next_check_at' => 'datetime',
         'refresh_interval' => 'integer',
         'paused' => 'boolean',
@@ -778,6 +790,48 @@ class Product extends Model
         }
 
         return false;
+    }
+
+    /**
+     * Notify when the price of this link changed from its previous read by at
+     * least the percent or the amount set, in the chosen direction. Empty
+     * thresholds are skipped; with none set the rule is off. A change of 0
+     * never notifies.
+     */
+    public function shouldNotifyOnThreshold(Url $url, Price $price): bool
+    {
+        $percent = $this->notify_change_percent !== null ? (float) $this->notify_change_percent : null;
+        $amount = $this->notify_change_amount !== null ? (float) $this->notify_change_amount : null;
+
+        if (($percent === null || $percent <= 0) && ($amount === null || $amount <= 0)) {
+            return false;
+        }
+
+        $previous = $url->previousPrice($price);
+
+        if ($previous === null) {
+            return false;
+        }
+
+        $old = (float) $previous->price;
+        $change = round((float) $price->price - $old, 2);
+
+        if ($change == 0.0) {
+            return false;
+        }
+
+        $direction = $this->notify_change_direction ?: self::CHANGE_DOWN;
+
+        if (($direction === self::CHANGE_DOWN && $change > 0) || ($direction === self::CHANGE_UP && $change < 0)) {
+            return false;
+        }
+
+        if ($amount !== null && $amount > 0 && abs($change) >= $amount) {
+            return true;
+        }
+
+        return $percent !== null && $percent > 0 && $old > 0
+            && abs($change) / $old * 100 >= $percent;
     }
 
     /**

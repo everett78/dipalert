@@ -24,3 +24,9 @@ Modifications to the original work (GPL-3.0, section 5a):
             when a page has no price (in the background when started from
             the panel) and never switching a store's fetch method,
             alternating store order in runs, Morele structured data fix.
+2026-11-12  Stage 3: notification on a price change from the previous read
+            (percent or amount, direction), at most one e-mail per new
+            price, price alerts sent through the queue with retries, a
+            record of every fetch attempt with the page of a failed one,
+            runs as job batches, "Problems" page, daily status e-mail,
+            per-product failure e-mails off by default.

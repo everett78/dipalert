@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Url;
 use App\Models\User;
 use App\Notifications\ScrapeFailNotification;
+use App\Settings\AppSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -41,6 +42,13 @@ class RetryUrlPriceJobTest extends TestCase
     /**
      * The fetch fails again with a network error (the only retryable outcome).
      */
+    private function enablePerProductFailureAlerts(): void
+    {
+        $settings = AppSettings::new();
+        $settings->per_product_failure_alerts = true;
+        $settings->save();
+    }
+
     private function failsWithNetworkError(Url $url, FetchOutcome $outcome = FetchOutcome::NetworkError): void
     {
         $url->shouldReceive('updatePrice')->once()->andReturnUsing(function () use ($url, $outcome) {
@@ -93,11 +101,29 @@ class RetryUrlPriceJobTest extends TestCase
         $product->setRelation('user', $user);
         $this->failsWithNetworkError($url);
 
+        $this->enablePerProductFailureAlerts();
+
         // Default max attempts is 3, so attempt 3 is the final one.
         (new RetryUrlPriceJob($url, 3))->handle();
 
         Notification::assertSentTo($user, ScrapeFailNotification::class);
         Queue::assertNotPushed(RetryUrlPriceJob::class);
+    }
+
+    public function test_exhaustion_sends_no_e_mail_by_default(): void
+    {
+        Queue::fake();
+        Notification::fake();
+
+        $user = User::factory()->create();
+        [$url, $product] = $this->makeUrlAndProduct();
+        $product->setRelation('user', $user);
+        $this->failsWithNetworkError($url);
+
+        // The daily status e-mail reports failures instead.
+        (new RetryUrlPriceJob($url, 3))->handle();
+
+        Notification::assertNothingSent();
     }
 
     public function test_stops_silently_on_success(): void
@@ -135,6 +161,8 @@ class RetryUrlPriceJobTest extends TestCase
         $urlB = Mockery::mock(Url::class)->makePartial();
         $urlB->setRelation('product', $product);
         $this->failsWithNetworkError($urlB);
+
+        $this->enablePerProductFailureAlerts();
 
         // Both URLs of the same product exhaust their retries (attempt 3 of 3).
         (new RetryUrlPriceJob($urlA, 3))->handle();

@@ -10,6 +10,12 @@ class PriceCreatedListener
 {
     public function __construct() {}
 
+    /**
+     * Rules in order: the change threshold from the previous read of this link,
+     * then the existing rules (every change, target price, percent from the first
+     * price). The first rule that notifies ends the check, so a new price sends
+     * at most one e-mail.
+     */
     public function handle(PriceCreatedEvent $event): void
     {
         // Need a product proceed.
@@ -27,8 +33,8 @@ class PriceCreatedListener
         }
 
         try {
-            // Notify the user if the price changed and the product asks for every change.
-            if ($product->shouldNotifyOnPriceChange($event->price)) {
+            if ($product->shouldNotifyOnThreshold($url, $event->price)
+                || $product->shouldNotifyOnPriceChange($event->price)) {
                 $previousPrice = (float) $url->previousPrice($event->price)?->price;
                 $product->user?->notify(new PriceAlertNotification($url, $previousPrice, $event->price));
                 $event->price->update(['notified' => true]);

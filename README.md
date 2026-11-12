@@ -20,8 +20,26 @@ wymienia plik [NOTICE](NOTICE).
     blokada adresów sieci domowej (`UrlGuard`), odstęp między zapytaniami
     do jednego sklepu i przerwa po blokadzie (rosnąca, liczona
     w przebiegach), naprawa przez AI tylko przy braku ceny.
-*   Kolejne etapy (dzienny e-mail, kolekcje, listy ofert z Ceneo) opisuje
-    dokument projektowy autora.
+*   Powiadomienie o zmianie ceny względem poprzedniego odczytu (procent
+    albo kwota, kierunek), zapis każdej próby odczytu, strona „Problemy”
+    i dzienny e-mail o stanie („DipAlert: OK”, „uwagi (N)” albo „AWARIA”).
+*   Kolejne etapy (kolekcje, listy ofert z Ceneo) opisuje dokument
+    projektowy autora.
+
+## Dzienny e-mail
+
+Polecenie `php artisan dipalert:daily-report` wysyła codziennie (domyślnie
+o 07:30, **Ustawienia → Scrape Settings → Dzienny e-mail o stanie**) e-mail
+do administratorów:
+
+*   **DipAlert: AWARIA** — któryś przebieg z harmonogramu sprzed co najmniej
+    2 h się nie zaczął albo nie zakończył, albo FlareSolverr nie odpowiada;
+*   **DipAlert: uwagi (N)** — N linków, których ostatni odczyt się nie udał
+    albo został pominięty, plus wstrzymane sklepy;
+*   **DipAlert: OK** — w pozostałych przypadkach.
+
+E-mail wymaga włączonej poczty w panelu. Nieudane odczyty z zapisaną stroną
+są na stronie **Problemy** (dane i pliki są usuwane po 30 dniach).
 
 ## Metoda pobierania sklepu
 

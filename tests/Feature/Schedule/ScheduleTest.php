@@ -3,6 +3,7 @@
 namespace Tests\Feature\Schedule;
 
 use App\Console\Commands\BackupDatabase;
+use App\Console\Commands\DailyReport;
 use App\Console\Commands\FetchAll;
 use App\Console\Commands\FetchDue;
 use App\Services\Helpers\ScheduleHelper;
@@ -309,6 +310,31 @@ class ScheduleTest extends TestCase
 
         $this->assertNotNull($pruneBatchesEvent, 'queue:prune-batches should be scheduled');
         $this->assertStringContainsString('720', $pruneBatchesEvent->command ?? '');
+    }
+
+    public function test_daily_report_runs_at_the_set_time(): void
+    {
+        $event = collect($this->getSchedule()->events())->first(
+            fn ($event) => str_contains($event->command ?? '', DailyReport::COMMAND)
+        );
+
+        $this->assertNotNull($event, 'The daily report should be scheduled');
+
+        Carbon::setTestNow('2025-12-28 07:30:00');
+        $this->assertTrue($event->isDue($this->app), 'Should run at 07:30');
+
+        Carbon::setTestNow('2025-12-28 08:30:00');
+        $this->assertFalse($event->isDue($this->app));
+    }
+
+    public function test_fetch_attempts_are_pruned_daily(): void
+    {
+        $event = collect($this->getSchedule()->events())->first(
+            fn ($event) => str_contains($event->command ?? '', 'model:prune')
+                && str_contains($event->command ?? '', 'FetchAttempt')
+        );
+
+        $this->assertNotNull($event, 'Fetch attempts should be pruned');
     }
 
     /**

@@ -15,6 +15,19 @@ class AppSettings extends Settings
     public int $max_attempts_to_scrape = 3;
 
     /**
+     * Daily status e-mail (DipAlert).
+     */
+    public bool $daily_report_enabled = true;
+
+    public string $daily_report_time = '07:30';
+
+    /**
+     * Separate e-mail for each product whose fetch failed. Off by default: the
+     * daily status e-mail reports failures.
+     */
+    public bool $per_product_failure_alerts = false;
+
+    /**
      * Delayed, schedule-level retries for a failed URL scrape. Distinct from
      * max_attempts_to_scrape, which retries immediately in-process within a
      * single scrape. scrape_retry_max_attempts is the TOTAL attempt count

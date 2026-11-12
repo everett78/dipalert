@@ -256,6 +256,33 @@ class ProductResource extends Resource
                     ->suffix('%')
                     ->numeric(),
 
+                TextInput::make('notify_change_percent')
+                    ->label(__('Change from the previous read (%)'))
+                    ->nullable()
+                    ->hintIcon(Icons::Help->value, __('Get notified when the price of a link changes by at least this percent between two reads'))
+                    ->suffix('%')
+                    ->numeric()
+                    ->minValue(0.01)
+                    ->maxValue(999.99),
+
+                TextInput::make('notify_change_amount')
+                    ->label(__('Change from the previous read (amount)'))
+                    ->nullable()
+                    ->hintIcon(Icons::Help->value, __('Get notified when the price of a link changes by at least this amount between two reads'))
+                    ->suffix(CurrencyHelper::getSymbol())
+                    ->numeric()
+                    ->minValue(0.01),
+
+                Select::make('notify_change_direction')
+                    ->label(__('Direction of the change'))
+                    ->options([
+                        Product::CHANGE_DOWN => __('Drop'),
+                        Product::CHANGE_UP => __('Rise'),
+                        Product::CHANGE_BOTH => __('Both'),
+                    ])
+                    ->placeholder(__('Drop'))
+                    ->native(false),
+
                 Forms\Components\Toggle::make('notify_in_stock')
                     ->label('Notify when back in stock')
                     ->hintIcon(Icons::Help->value, 'Get notified when a tracked url for this product becomes available again after being out of stock')
