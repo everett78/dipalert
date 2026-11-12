@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Actions\ApplyCollectionTemplateAction;
 use App\Enums\Icons;
 use App\Enums\Statuses;
 use App\Filament\Resources\ProductResource\Actions\FetchBulkAction;
@@ -10,6 +11,7 @@ use App\Filament\Resources\ProductResource\Actions\ResumeBulkAction;
 use App\Filament\Resources\ProductResource\Api\Transformers\ProductTransformer;
 use App\Filament\Resources\ProductResource\Columns\ProductCardColumn;
 use App\Filament\Resources\ProductResource\Pages;
+use App\Models\Collection as ProductCollection;
 use App\Models\Product;
 use App\Models\Tag;
 use App\Providers\Filament\AdminPanelProvider;
@@ -101,6 +103,8 @@ class ProductResource extends Resource
 
         $components[] = self::createTagsSelect();
 
+        $components[] = self::collectionsSelect();
+
         $components[] = TextInput::make('price_factor')
             ->label(__('Price Factor'))
             ->numeric()
@@ -118,6 +122,101 @@ class ProductResource extends Resource
                 ->columns(2)
                 ->description(__('Given the url we will scrape the product information. Products and their urls are unique to your user account')),
         ];
+    }
+
+    /**
+     * Attach the chosen collections (only the user's own) and copy the template
+     * of each newly added one into the product.
+     *
+     * @param  array<int, int|string>  $ids
+     */
+    public static function syncCollections(Product $product, array $ids, bool $detach = true): void
+    {
+        $chosen = ProductCollection::query()
+            ->where('user_id', $product->user_id)
+            ->whereIn('id', array_map('intval', $ids))
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        $result = $detach
+            ? $product->collections()->sync($chosen)
+            : $product->collections()->syncWithoutDetaching($chosen);
+
+        $action = new ApplyCollectionTemplateAction;
+
+        ProductCollection::query()->whereIn('id', $result['attached'])->get()
+            ->each(fn (ProductCollection $collection) => $action->execute($collection, $product->refresh()));
+    }
+
+    /**
+     * Delete a product after typing its name (requirement of the brief).
+     */
+    public static function deleteWithNameAction(): \Filament\Actions\Action
+    {
+        return \Filament\Actions\Action::make('deleteProduct')
+            ->label(__('Delete'))
+            ->icon(Icons::Delete->value)
+            ->color('danger')
+            ->modalHeading(__('Delete product'))
+            ->modalDescription(__('The product and its price history will be deleted.'))
+            ->form([
+                TextInput::make('confirm_name')
+                    ->label(__('Type the product name to confirm'))
+                    ->required()
+                    ->rule(fn (Product $record) => function (string $attribute, mixed $value, \Closure $fail) use ($record): void {
+                        if (trim((string) $value) !== trim((string) $record->title)) {
+                            $fail(__('The name does not match.'));
+                        }
+                    }),
+            ])
+            ->action(function (Product $record, \Filament\Actions\Action $action): void {
+                $record->delete();
+
+                \Filament\Notifications\Notification::make()->title(__('Product deleted'))->success()->send();
+                $action->redirect(self::getUrl('index'));
+            });
+    }
+
+    /**
+     * Collections of the product. Not a relationship field: the pages sync it
+     * themselves so they know which collections are new (their template is
+     * copied into the product).
+     */
+    public static function collectionsSelect(): Select
+    {
+        return Select::make('collection_ids')
+            ->label(__('Collections'))
+            ->multiple()
+            ->options(fn (): array => ProductCollection::query()
+                ->currentUser()
+                ->with('parent')
+                ->get()
+                ->sortBy(fn (ProductCollection $collection): string => $collection->fullName())
+                ->mapWithKeys(fn (ProductCollection $collection): array => [$collection->getKey() => $collection->fullName()])
+                ->all())
+            ->searchable()
+            ->preload()
+            ->native(false)
+            ->dehydrated(true);
+    }
+
+    /**
+     * Attribute fields from the templates of the product's collections.
+     */
+    public static function attributeFieldsHint(?Product $product): ?string
+    {
+        if ($product === null) {
+            return null;
+        }
+
+        $fields = $product->collections
+            ->flatMap(fn (ProductCollection $collection): array => $collection->template->attributes)
+            ->unique('key')
+            ->map(fn (array $field): string => $field['label'].' ('.$field['key'].($field['unit'] ? ', '.$field['unit'] : '').')')
+            ->implode(', ');
+
+        return $fields === '' ? null : __('Fields from collections: :fields', ['fields' => $fields]);
     }
 
     /**
@@ -229,6 +328,8 @@ class ProductResource extends Resource
                     ->placeholder('Search tags or create new...')
                     ->noSearchResultsMessage('No tags found'),
 
+                self::collectionsSelect(),
+
                 Select::make('weight')
                     ->label('Homepage sort order')
                     ->hintIcon(Icons::Help->value, 'The lower the number the higher it will appear on the homepage')
@@ -296,6 +397,17 @@ class ProductResource extends Resource
             ])
                 ->columns(2)
                 ->description('Notification settings'),
+
+            Forms\Components\Section::make(__('Attributes'))->schema([
+                Forms\Components\KeyValue::make('attributes')
+                    ->label('')
+                    ->keyLabel(__('Key'))
+                    ->valueLabel(__('Value'))
+                    ->addActionLabel(__('Add attribute'))
+                    ->helperText(fn (?Product $record): ?string => self::attributeFieldsHint($record)),
+            ])
+                ->collapsible()
+                ->description(__('Product attributes, e.g. power or size')),
 
             Forms\Components\Section::make('Schedule')->schema([
                 Select::make('refresh_interval')
@@ -382,6 +494,11 @@ class ProductResource extends Resource
                     ->label('Tags')
                     ->multiple()
                     ->native(false),
+                SelectFilter::make('collections')
+                    ->relationship('collections', 'name', fn (Builder $query) => $query->where('collections.user_id', auth()->id()))
+                    ->label(__('Collections'))
+                    ->multiple()
+                    ->native(false),
                 Tables\Filters\TernaryFilter::make('paused')
                     ->label('Checking')
                     ->placeholder('All')
@@ -398,7 +515,14 @@ class ProductResource extends Resource
                     FetchBulkAction::make(),
                     PauseBulkAction::make(),
                     ResumeBulkAction::make(),
-                    Tables\Actions\DeleteBulkAction::make(),
+                    // Deleting products asks to type a word first (requirement of the brief).
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->form([
+                            TextInput::make('confirm')
+                                ->label(__('Type "usuń" to delete the selected products'))
+                                ->required()
+                                ->in(['usuń', 'USUŃ', 'Usuń']),
+                        ]),
                 ]),
             ])
             ->modifyQueryUsing(function (Builder $query) {

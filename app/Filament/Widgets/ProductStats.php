@@ -2,10 +2,13 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\ProductResource;
+use App\Models\Collection as ProductCollection;
 use App\Models\Product;
 use App\Models\Tag;
 use App\Services\Dashboard\DashboardLayoutService;
 use App\Services\Dashboard\DashboardSections;
+use App\Services\Helpers\SettingsHelper;
 use Filament\Widgets\Widget;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -62,15 +65,92 @@ class ProductStats extends Widget
             : $tags->sortBy('name')->pluck('name')->implode(', ');
     }
 
+    public const string GROUP_COLLECTIONS = 'collections';
+
+    public const string GROUP_TAGS = 'tags';
+
+    public static function grouping(): string
+    {
+        return SettingsHelper::getSetting('dashboard_grouping', self::GROUP_COLLECTIONS) === self::GROUP_TAGS
+            ? self::GROUP_TAGS
+            : self::GROUP_COLLECTIONS;
+    }
+
+    /**
+     * Products shown on the dashboard (favourite, published, with a price).
+     *
+     * @return Collection<int, Product>
+     */
+    protected static function dashboardProducts(): Collection
+    {
+        return Product::query()
+            ->currentUser()
+            ->favourite()
+            ->published()
+            ->with(['tags', 'collections'])
+            ->orderBy('weight')
+            ->orderByDesc('created_at')
+            ->get()
+            ->filter(fn (Product $product) => isset($product->price_cache[0]))
+            ->values();
+    }
+
+    /**
+     * Groups by collection: active top-level collections (a card with the icon
+     * or image and the description) with their subcollections and product
+     * counts; products attached straight to the top-level collection in
+     * "Pozostałe"; products without a collection in "Bez kolekcji". A product
+     * in several collections shows in each.
+     *
+     * @return array{collections: list<array<string, mixed>>, uncollected: Collection<int, Product>}
+     */
+    public static function getCollectionGroups(): array
+    {
+        $products = self::dashboardProducts();
+
+        $collections = ProductCollection::query()
+            ->currentUser()
+            ->topLevel()
+            ->active()
+            ->with(['children' => fn ($query) => $query->where('enabled', true)->withCount('products')])
+            ->orderBy('weight')
+            ->orderBy('name')
+            ->get();
+
+        $groups = $collections->map(function (ProductCollection $collection) use ($products): array {
+            return [
+                'collection' => $collection,
+                'children' => $collection->children->map(fn (ProductCollection $child): array => [
+                    'collection' => $child,
+                    'count' => (int) $child->products_count,
+                    'url' => ProductResource::getUrl('index').'?tableFilters[collections][values][0]='.$child->getKey(),
+                ])->all(),
+                'products' => $products
+                    ->filter(fn (Product $product): bool => $product->collections->contains('id', $collection->getKey()))
+                    ->values(),
+            ];
+        })->all();
+
+        return [
+            'collections' => $groups,
+            'uncollected' => $products->filter(fn (Product $product): bool => $product->collections->isEmpty())->values(),
+        ];
+    }
+
     public function getViewData(): array
     {
         $user = auth()->user();
         $layout = new DashboardLayoutService($user);
         $sectionsService = new DashboardSections($user);
+        $grouping = self::grouping();
 
-        $groups = $this->orderGroups(self::getProductsGrouped(), $layout);
+        $groups = $grouping === self::GROUP_TAGS
+            ? $this->orderGroups(self::getProductsGrouped(), $layout)
+            : [];
 
         return [
+            'grouping' => $grouping,
+            'collectionGroups' => $grouping === self::GROUP_COLLECTIONS ? self::getCollectionGroups() : null,
             'groups' => $groups,
             'sections' => $layout->sections(),
             'sectionData' => [

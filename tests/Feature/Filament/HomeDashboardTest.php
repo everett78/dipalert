@@ -5,6 +5,7 @@ namespace Tests\Feature\Filament;
 use App\Filament\Pages\HomeDashboard;
 use App\Models\User;
 use App\Services\Dashboard\DashboardLayoutService;
+use App\Services\Helpers\SettingsHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -20,6 +21,9 @@ class HomeDashboardTest extends TestCase
         parent::setUp();
         $this->user = User::factory()->create();
         $this->actingAs($this->user);
+
+        // These tests cover grouping by tags; DipAlert groups by collections by default.
+        SettingsHelper::setSetting('dashboard_grouping', 'tags');
     }
 
     public function test_customize_action_seeds_current_section_visibility(): void

@@ -9,6 +9,7 @@ use App\Enums\StockStatus;
 use App\Enums\Trend;
 use App\Events\NotifyPriceChangeEvent;
 use App\Filament\Actions\BaseAction;
+use App\Models\Collection as ProductCollection;
 use App\Services\Helpers\CurrencyHelper;
 use App\Services\Helpers\SettingsHelper;
 use App\Services\Insights\ProductInsights;
@@ -22,6 +23,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
@@ -50,6 +52,7 @@ use Illuminate\Support\Str;
  * @property ?string $notify_change_amount
  * @property ?string $notify_change_direction
  * @property ?array $chart_settings
+ * @property \Illuminate\Database\Eloquent\Collection<int, ProductCollection> $collections
  * @property ?int $refresh_interval
  * @property ?Carbon $next_check_at
  * @property bool $paused
@@ -97,6 +100,10 @@ class Product extends Model
         'notify_change_amount' => 'decimal:2',
         'notify_change_direction' => 'string',
         'chart_settings' => 'array',
+        // Attribute values {key: value}. Read it as $product->attributes from
+        // outside, or getAttribute('attributes') inside the model: $this->attributes
+        // is Eloquent's own property.
+        'attributes' => 'array',
         'next_check_at' => 'datetime',
         'refresh_interval' => 'integer',
         'paused' => 'boolean',
@@ -794,6 +801,33 @@ class Product extends Model
         }
 
         return false;
+    }
+
+    /**
+     * @return BelongsToMany<ProductCollection, $this>
+     */
+    public function collections(): BelongsToMany
+    {
+        return $this->belongsToMany(ProductCollection::class, 'collection_product');
+    }
+
+    /**
+     * Products to fetch: published, not paused, and either in no collection or
+     * in at least one active collection (enabled, with an enabled parent).
+     *
+     * @param  EloquentBuilder<Product>  $query
+     * @return EloquentBuilder<Product>
+     */
+    public function scopeShouldBeChecked(EloquentBuilder $query): EloquentBuilder
+    {
+        return $query->published()
+            ->where('products.paused', false)
+            ->where(fn (EloquentBuilder $query) => $query
+                ->whereDoesntHave('collections')
+                ->orWhereHas('collections', fn (EloquentBuilder $collections) => $collections->where('collections.enabled', true)
+                    ->where(fn (EloquentBuilder $query) => $query
+                        ->whereNull('collections.parent_id')
+                        ->orWhereHas('parent', fn (EloquentBuilder $parent) => $parent->where('enabled', true)))));
     }
 
     /**
