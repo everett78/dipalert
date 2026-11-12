@@ -81,6 +81,7 @@ class UpdateProductPricesJobTest extends TestCase
 
         $settings = AppSettings::new();
         $settings->scrape_retry_max_attempts = 1;
+        $settings->per_product_failure_alerts = true;
         $settings->save();
 
         $user = User::factory()->create();

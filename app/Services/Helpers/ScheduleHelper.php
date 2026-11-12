@@ -3,8 +3,10 @@
 namespace App\Services\Helpers;
 
 use App\Console\Commands\BackupDatabase;
+use App\Console\Commands\DailyReport;
 use App\Console\Commands\FetchAll;
 use App\Console\Commands\FetchDue;
+use App\Models\FetchAttempt;
 use Illuminate\Console\Scheduling\Schedule;
 use Lorisleiva\CronTranslator\CronTranslator;
 use Throwable;
@@ -53,6 +55,11 @@ class ScheduleHelper
         $schedule->command(BackupDatabase::COMMAND, ['--reason' => 'nightly'])->dailyAt('03:00');
         // Prune finished job batches older than 30 days (DipAlert runs are batches).
         $schedule->command('queue:prune-batches', ['--hours' => 720])->daily();
+        // Daily status e-mail (DipAlert); the command checks whether it is enabled.
+        $schedule->command(DailyReport::COMMAND)
+            ->dailyAt((string) SettingsHelper::getSetting('daily_report_time', '07:30'));
+        // Prune fetch attempts (and their saved pages) after the retention period.
+        $schedule->command('model:prune', ['--model' => [FetchAttempt::class]])->daily();
         // Prune expired Sanctum tokens
         $schedule->command('sanctum:prune-expired', ['--hours' => 24])->daily();
     }

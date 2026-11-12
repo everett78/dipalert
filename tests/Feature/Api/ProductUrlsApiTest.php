@@ -196,7 +196,9 @@ class ProductUrlsApiTest extends TestCase
             ])
             ->assertHasNoActionErrors();
 
-        Queue::assertNothingPushed();
+        // Added straight away, not queued. (The price alert itself goes through
+        // the queue since DipAlert stage 3.)
+        Queue::assertNotPushed(AddUrlToProductJob::class);
         $this->assertSame(['https://example.com/a'], $this->product->urls()->pluck('url')->all());
     }
 

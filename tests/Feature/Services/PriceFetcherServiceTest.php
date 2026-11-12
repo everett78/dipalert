@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Services;
 
+use App\Dto\FetchContext;
 use App\Enums\FetchSource;
 use App\Enums\Statuses;
+use App\Jobs\NoopJob;
 use App\Jobs\UpdateAllPricesJob;
 use App\Jobs\UpdateProductPricesJob;
 use App\Models\Product;
@@ -11,7 +13,9 @@ use App\Models\Store;
 use App\Models\Url;
 use App\Models\User;
 use App\Services\PriceFetcherService;
+use Illuminate\Bus\PendingBatch;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Tests\TestCase;
 
@@ -46,15 +50,19 @@ class PriceFetcherServiceTest extends TestCase
     }
 
     /**
-     * Product ids of the UpdateProductPricesJob jobs, in dispatch order.
+     * Product ids of the UpdateProductPricesJob jobs in the run batch, in order.
      *
      * @return array<int, int>
      */
     protected function dispatchedProductJobIds(): array
     {
         $ids = [];
-        Bus::assertDispatched(UpdateProductPricesJob::class, function (UpdateProductPricesJob $job) use (&$ids) {
-            $ids[] = $job->productId;
+        Bus::assertBatched(function (PendingBatch $batch) use (&$ids): bool {
+            foreach ($batch->jobs as $job) {
+                if ($job instanceof UpdateProductPricesJob) {
+                    $ids[] = $job->productId;
+                }
+            }
 
             return true;
         });
@@ -79,9 +87,35 @@ class PriceFetcherServiceTest extends TestCase
         PriceFetcherService::new()->updateAllPrices();
 
         $this->assertSame([$products[0], $products[2], $products[1]], $this->dispatchedProductJobIds());
-        Bus::assertDispatched(UpdateProductPricesJob::class, fn (UpdateProductPricesJob $job): bool => $job->ctx->source === FetchSource::Run
-            && ! $job->ctx->useCache);
+        Bus::assertBatched(fn (PendingBatch $batch): bool => $batch->name === PriceFetcherService::runName(now())
+            && $batch->allowsFailures()
+            && $batch->jobs->every(fn ($job): bool => $job instanceof UpdateProductPricesJob
+                && $job->ctx->source === FetchSource::Run
+                && ! $job->ctx->useCache));
         Bus::assertNotDispatched(UpdateAllPricesJob::class);
+    }
+
+    public function test_global_lane_without_products_sends_a_run_with_a_noop_job()
+    {
+        Bus::fake();
+
+        PriceFetcherService::new()->updateAllPrices();
+
+        Bus::assertBatched(fn (PendingBatch $batch): bool => $batch->jobs->count() === 1
+            && $batch->jobs->first() instanceof NoopJob);
+    }
+
+    public function test_job_in_a_run_batch_uses_the_batch_id()
+    {
+        $job = (new UpdateProductPricesJob(1, FetchContext::run()))->withBatchId('batch-42');
+
+        $this->assertSame('batch-42', $job->context()->batchId);
+        $this->assertSame(FetchSource::Run, $job->context()->source);
+    }
+
+    public function test_run_name_is_the_start_minute()
+    {
+        $this->assertSame('przebieg 2026-11-11 07:00', PriceFetcherService::runName(Carbon::parse('2026-11-11 07:00:42')));
     }
 
     public function test_due_lane_passes_the_due_context()

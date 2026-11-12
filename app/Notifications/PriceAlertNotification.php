@@ -10,13 +10,23 @@ use App\Services\Helpers\CurrencyHelper;
 use App\Services\Helpers\NotificationsHelper;
 use Filament\Notifications\Actions\Action;
 use Filament\Notifications\Notification as DatabaseNotification;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Str;
 
-class PriceAlertNotification extends Notification
+/**
+ * Sent through the queue with 3 tries 5 minutes apart, so a mail server outage
+ * shorter than about 10 minutes does not lose the alert.
+ */
+class PriceAlertNotification extends Notification implements ShouldQueue
 {
-    // use Queueable;
+    use Queueable;
+
+    public int $tries = 3;
+
+    public int $backoff = 300;
 
     protected ?Product $product;
 

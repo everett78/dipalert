@@ -3,10 +3,14 @@
 namespace App\Services;
 
 use App\Dto\FetchContext;
+use App\Jobs\NoopJob;
 use App\Jobs\UpdateAllPricesJob;
 use App\Jobs\UpdateProductPricesJob;
 use App\Models\Product;
+use Carbon\CarbonInterface;
+use Illuminate\Bus\Batch;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Facades\Bus;
 
 class PriceFetcherService
 {
@@ -33,12 +37,24 @@ class PriceFetcherService
         return $this;
     }
 
+    public const string RUN_PREFIX = 'przebieg ';
+
+    /**
+     * Name of the run batch started at the given time, e.g. "przebieg 2026-11-11 07:00".
+     */
+    public static function runName(CarbonInterface $start): string
+    {
+        return self::RUN_PREFIX.$start->copy()->startOfMinute()->format('Y-m-d H:i');
+    }
+
     /**
      * Global lane (a scheduled run): fetch every published product that follows
      * the global schedule (no custom interval) and isn't paused. One job per
-     * product, sent in an order that alternates between stores.
+     * product, sent in an order that alternates between stores, as one job
+     * batch named after the start time. With no product the batch holds one
+     * NoopJob, so the run still exists and finishes.
      */
-    public function updateAllPrices(): void
+    public function updateAllPrices(): ?Batch
     {
         $products = Product::query()
             ->select('id')
@@ -48,12 +64,21 @@ class PriceFetcherService
             ->with('urls:id,product_id,store_id')
             ->get();
 
-        // The run (job batch) is added in stage 3.
-        $ctx = FetchContext::run(null);
+        // The batch id is known only once the batch exists; each job builds its
+        // context from its own batch id.
+        $jobs = array_map(
+            fn (int $productId) => new UpdateProductPricesJob($productId, FetchContext::run(), $this->logging),
+            FetchScheduler::order($products),
+        );
 
-        foreach (FetchScheduler::order($products) as $productId) {
-            UpdateProductPricesJob::dispatch($productId, $ctx, $this->logging);
+        if ($jobs === []) {
+            $jobs = [new NoopJob];
         }
+
+        return Bus::batch($jobs)
+            ->name(self::runName(now()))
+            ->allowFailures()
+            ->dispatch();
     }
 
     /**

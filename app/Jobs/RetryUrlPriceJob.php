@@ -95,6 +95,12 @@ class RetryUrlPriceJob implements ShouldQueue
      */
     protected function notifyExhausted(Product $product, AppSettings $settings): void
     {
+        // The daily status e-mail reports failures; a separate e-mail per product
+        // only when the setting asks for it.
+        if (! $settings->per_product_failure_alerts) {
+            return;
+        }
+
         $cacheKey = "scrape-fail-notified:{$product->getKey()}";
         $window = now()->addMinutes(max(1, $settings->scrape_retry_delay_minutes));
 

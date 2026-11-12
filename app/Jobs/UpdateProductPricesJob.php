@@ -3,11 +3,13 @@
 namespace App\Jobs;
 
 use App\Dto\FetchContext;
+use App\Enums\FetchSource;
 use App\Models\Product;
 use App\Models\Url;
 use App\Notifications\ScrapeFailNotification;
 use App\Services\PriceFetcherService;
 use App\Settings\AppSettings;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
@@ -15,12 +17,23 @@ use Illuminate\Support\Collection;
 
 class UpdateProductPricesJob implements ShouldQueue
 {
+    use Batchable;
     use Dispatchable;
     use Queueable;
 
     public $timeout = PriceFetcherService::JOB_TIMEOUT;
 
     public function __construct(public int $productId, public FetchContext $ctx, public bool $logging = false) {}
+
+    /**
+     * The fetch context; a job in a run batch carries the batch id.
+     */
+    public function context(): FetchContext
+    {
+        return $this->batchId !== null && $this->ctx->source === FetchSource::Run
+            ? FetchContext::run($this->batchId)
+            : $this->ctx;
+    }
 
     public function handle(): void
     {
@@ -37,7 +50,7 @@ class UpdateProductPricesJob implements ShouldQueue
             ]);
         }
 
-        $failedUrls = $product->updatePrices($this->ctx);
+        $failedUrls = $product->updatePrices($this->context());
         $successful = $failedUrls->isEmpty();
 
         if ($this->logging) {
@@ -68,7 +81,9 @@ class UpdateProductPricesJob implements ShouldQueue
         $settings = AppSettings::new();
 
         if ($settings->scrape_retry_max_attempts < 2) {
-            $product->user?->notify(new ScrapeFailNotification($product));
+            if ($settings->per_product_failure_alerts) {
+                $product->user?->notify(new ScrapeFailNotification($product));
+            }
 
             return;
         }

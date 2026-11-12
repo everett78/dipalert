@@ -13,6 +13,7 @@ use App\Jobs\UpdateAllPricesJob;
 use App\Services\AiConfigHealer;
 use App\Services\AiScrapeEnhancer;
 use App\Services\AutoCreateStore;
+use App\Services\FailedPageStore;
 use App\Services\Helpers\AffiliateHelper;
 use App\Services\Helpers\CurrencyHelper;
 use App\Services\Helpers\IntegrationHelper;
@@ -30,12 +31,15 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Support\Uri;
+use Throwable;
 
 /**
  * Product URL.
  *
  * @property ?string $url
  * @property ?string $url_normalized
+ * @property ?string $last_outcome
+ * @property ?Carbon $last_attempt_at
  * @property float $price_factor
  * @property string $product_name_short
  * @property string $store_name
@@ -77,6 +81,7 @@ class Url extends Model
             'updated_at' => 'datetime',
             'created_at' => 'datetime',
             'availability' => StockStatus::class,
+            'last_attempt_at' => 'datetime',
         ];
     }
 
@@ -551,9 +556,8 @@ class Url extends Model
                 $scrapeResult = AiConfigHealer::new()->heal($this, $scrapeResult, $ctx);
                 $scrapeResult = AiScrapeEnhancer::new()->enhance($this, $scrapeResult);
 
-                if (filled(data_get($scrapeResult, 'price'))) {
-                    $scrapeResult[ScrapeUrl::OUTCOME_KEY] = FetchOutcome::Ok;
-                }
+                // Classify the final result again: a price found by AI makes it "ok".
+                unset($scrapeResult[ScrapeUrl::OUTCOME_KEY]);
             } elseif ($outcome === FetchOutcome::NoPrice && self::aiRepairAvailable($this->store)) {
                 self::deferAiRepair($this->product_id);
             }
@@ -561,7 +565,13 @@ class Url extends Model
             $price = data_get($scrapeResult, 'price');
             $this->lastFetchOutcome = ScrapeUrl::outcomeOf($scrapeResult);
         } else {
-            $this->lastFetchOutcome = FetchOutcome::Ok;
+            $this->lastFetchOutcome = $scrapeResult !== null ? ScrapeUrl::outcomeOf($scrapeResult) : FetchOutcome::Ok;
+        }
+
+        // One attempt per call, written at the end (after any AI repair). A price
+        // given from outside without a fetch result is not an attempt.
+        if ($scrapeResult !== null) {
+            $this->recordAttempt($scrapeResult, $this->lastFetchOutcome, $ctx);
         }
 
         // Update out-of-stock status based on scrape result.
@@ -611,6 +621,61 @@ class Url extends Model
             'price_factor' => $priceFactor,
             'store_id' => $this->store_id,
         ]);
+    }
+
+    /**
+     * Write the attempt to fetch_attempts and keep the outcome on the link. A
+     * page served from the cache is not an attempt. The page of a failed fetch
+     * is kept for the "Problems" page.
+     *
+     * @param  array<string, mixed>  $result
+     */
+    protected function recordAttempt(array $result, FetchOutcome $outcome, FetchContext $ctx): void
+    {
+        if (! $this->exists || data_get($result, ScrapeUrl::FROM_CACHE_KEY) === true) {
+            return;
+        }
+
+        try {
+            $body = (string) data_get($result, 'body', '');
+            $status = data_get($result, ScrapeUrl::STATUS_KEY);
+
+            FetchAttempt::query()->create([
+                'url_id' => $this->getKey(),
+                'store_id' => $this->store_id,
+                'outcome' => $outcome,
+                'source' => $ctx->source,
+                'batch_id' => $ctx->batchId,
+                'method' => data_get($result, ScrapeUrl::METHOD_KEY) ?? $this->store?->scraper_service,
+                'http_status' => is_numeric($status) ? (int) $status : null,
+                'final_url' => data_get($result, ScrapeUrl::FINAL_URL_KEY),
+                'message' => self::attemptMessage($result),
+                'page_path' => $outcome !== FetchOutcome::Ok && $body !== '' ? FailedPageStore::save($body) : null,
+            ]);
+
+            $this->forceFill([
+                'last_outcome' => $outcome->value,
+                'last_attempt_at' => now(),
+            ])->saveQuietly();
+        } catch (Throwable $e) {
+            logger()->error('Could not record the fetch attempt: '.$e->getMessage(), ['url_id' => $this->getKey()]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     */
+    protected static function attemptMessage(array $result): ?string
+    {
+        foreach ((array) data_get($result, 'errors', []) as $error) {
+            $message = is_array($error) ? data_get($error, 'message') : $error;
+
+            if (is_string($message) && $message !== '') {
+                return Str::limit($message, 1000);
+            }
+        }
+
+        return null;
     }
 
     public function syncStoredPricesForCurrentFactor(): void

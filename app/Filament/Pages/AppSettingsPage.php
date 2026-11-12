@@ -24,6 +24,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Tabs;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Notifications\Notification;
@@ -234,6 +235,19 @@ class AppSettingsPage extends SettingsPage
                     ->integer()
                     ->minValue(1)
                     ->required(),
+            ])->columns(2),
+            self::makeSettingsHeading(__('Daily status e-mail'), __('One e-mail a day about runs, failed reads and paused stores')),
+            Group::make([
+                Toggle::make('daily_report_enabled')
+                    ->label(__('Send the daily status e-mail')),
+                TextInput::make('daily_report_time')
+                    ->label(__('Time of the daily e-mail'))
+                    ->placeholder('07:30')
+                    ->regex('/^([01]\d|2[0-3]):[0-5]\d$/')
+                    ->required(),
+                Toggle::make('per_product_failure_alerts')
+                    ->label(__('Also send an e-mail for each product that failed'))
+                    ->columnSpanFull(),
             ])->columns(2),
         ]);
     }
