@@ -30,3 +30,8 @@ Modifications to the original work (GPL-3.0, section 5a):
             record of every fetch attempt with the page of a failed one,
             runs as job batches, "Problems" page, daily status e-mail,
             per-product failure e-mails off by default.
+2026-11-12  Stage 4: price chart with a store filter and a period (saved
+            per product), a 20-colour palette, the lowest price line from
+            the chosen stores only, store logos (fetched from the home
+            page or uploaded; PNG, JPEG, ICO, WebP only) shown in the panel
+            and embedded in e-mails.

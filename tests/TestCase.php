@@ -44,6 +44,9 @@ abstract class TestCase extends BaseTestCase
         // Pacing tests set an interval on the store.
         Sleep::fake();
         config()->set('dipalert.default_min_interval_seconds', 0);
+
+        // New stores queue a logo fetch, a real request. Logo tests turn it on.
+        config()->set('dipalert.fetch_store_logos', false);
     }
 
     protected FakeHostResolver $hostResolver;

@@ -11,6 +11,9 @@
 <tr>
 <td align="center">
 <p>
+@if (! empty($storeLogoPath) && isset($message))
+<img src="{{ $message->embed($storeLogoPath) }}" alt="" width="20" height="20" style="width: 20px; height: 20px; vertical-align: middle" />
+@endif
 <strong>{{ $storeName }}</strong>
 {{ __('has had a price reduction for') }}
 <br />

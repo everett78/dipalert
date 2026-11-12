@@ -126,7 +126,6 @@ class DailyStatusReport
      * Links whose last attempt in the window was not "ok".
      *
      * @param  Collection<int, FetchAttempt>  $attempts
-     * @return Collection<int, array{url_id: int, outcome: FetchOutcome, product: string, store: string, url: string}>
      */
     protected function problemLinks(Collection $attempts): Collection
     {
@@ -150,6 +149,7 @@ class DailyStatusReport
                 'outcome' => $attempt->outcome,
                 'product' => (string) ($attempt->url?->product->title ?? '—'),
                 'store' => (string) ($attempt->store->name ?? FetchPacing::hostFromUrl((string) $attempt->url?->url)),
+                'store_logo' => $attempt->store?->logoFilePath(),
                 'url' => (string) $attempt->url?->url,
             ])
             ->values();

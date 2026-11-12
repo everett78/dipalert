@@ -8,6 +8,10 @@ use App\Models\Url;
 use App\Models\User;
 use App\Notifications\PriceAlertNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Mail\Markdown;
+use Illuminate\Mail\Message;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Mime\Email;
 use Tests\TestCase;
 
 class PriceAlertNotificationTest extends TestCase
@@ -47,6 +51,38 @@ class PriceAlertNotificationTest extends TestCase
 
         $this->assertEmpty(array_diff($channels, ['mail', 'database']));
         $this->assertContains('database', $channels);
+    }
+
+    public function test_store_logo_is_embedded_in_the_e_mail()
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('logos/1.png', "\x89PNG\r\n\x1a\nlogo");
+
+        $user = User::factory()->create();
+        [$store, , $url] = $this->createStoreProductAndPrice('Test Store', 'Test Product', $user->getKey(), 99.99);
+        $store->update(['logo_path' => 'logos/1.png']);
+
+        $data = (new PriceAlertNotification($url->fresh()))->toArray($user);
+        $this->assertSame(Storage::disk('public')->path('logos/1.png'), $data['storeLogoPath']);
+
+        $message = new Message(new Email);
+        $html = (string) app(Markdown::class)->render('mail.price-change-notification', array_merge($data, ['message' => $message]));
+
+        $this->assertStringContainsString('cid:', $html);
+        $this->assertCount(1, $message->getSymfonyMessage()->getAttachments());
+    }
+
+    public function test_e_mail_without_a_logo_shows_the_store_name()
+    {
+        $user = User::factory()->create();
+        [, , $url] = $this->createStoreProductAndPrice('Test Store', 'Test Product', $user->getKey(), 99.99);
+
+        $data = (new PriceAlertNotification($url))->toArray($user);
+        $html = (string) app(Markdown::class)->render('mail.price-change-notification', $data);
+
+        $this->assertNull($data['storeLogoPath']);
+        $this->assertStringNotContainsString('cid:', $html);
+        $this->assertStringContainsString('Test Store', $html);
     }
 
     protected function createStoreProductAndPrice(string $storeName, string $productTitle, int $userId, float $price): array

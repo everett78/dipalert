@@ -44,5 +44,17 @@
     "Final address": "Adres końcowy",
     "Saved page": "Zapisana strona",
     "Download HTML": "Pobierz HTML",
-    "No saved page for this attempt.": "Brak zapisanej strony dla tej próby."
+    "No saved page for this attempt.": "Brak zapisanej strony dla tej próby.",
+    "Stores": "Sklepy",
+    "All stores": "Wszystkie sklepy",
+    "Period": "Okres",
+    "7 days": "7 dni",
+    "30 days": "30 dni",
+    "90 days": "90 dni",
+    "365 days": "365 dni",
+    "All": "Wszystko",
+    "Logo": "Logo",
+    "Fetch logo": "Pobierz logo",
+    "Fetching the logo in the background": "Logo jest pobierane w tle",
+    "The logo must be a PNG, JPEG, ICO or WebP image.": "Logo musi być obrazem PNG, JPEG, ICO albo WebP."
 }

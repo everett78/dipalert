@@ -50,7 +50,7 @@ Według źródła:
 @foreach ($report['problems'] as $label => $links)
 **{{ $label }}**
 @foreach ($links as $problem)
-- {{ $problem['product'] }} — {{ $problem['store'] }}
+- {{ $problem['product'] }} — @if (! empty($problem['store_logo']) && isset($message))<img src="{{ $message->embed($problem['store_logo']) }}" alt="" width="16" height="16" style="width: 16px; height: 16px; vertical-align: middle" /> @endif{{ $problem['store'] }}
 @endforeach
 
 @endforeach

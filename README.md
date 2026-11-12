@@ -23,6 +23,8 @@ wymienia plik [NOTICE](NOTICE).
 *   Powiadomienie o zmianie ceny względem poprzedniego odczytu (procent
     albo kwota, kierunek), zapis każdej próby odczytu, strona „Problemy”
     i dzienny e-mail o stanie („DipAlert: OK”, „uwagi (N)” albo „AWARIA”).
+*   Wykres cen z wyborem sklepów i okresu (zapamiętany w produkcie)
+    oraz logotypy sklepów w panelu i w e-mailach.
 *   Kolejne etapy (kolekcje, listy ofert z Ceneo) opisuje dokument
     projektowy autora.
 
