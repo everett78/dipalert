@@ -13,6 +13,8 @@ use App\Jobs\UpdateAllPricesJob;
 use App\Services\AiConfigHealer;
 use App\Services\AiScrapeEnhancer;
 use App\Services\AutoCreateStore;
+use App\Services\Comparison\CeneoOfferListParser;
+use App\Services\Comparison\ComparisonOfferSync;
 use App\Services\FailedPageStore;
 use App\Services\Helpers\AffiliateHelper;
 use App\Services\Helpers\CurrencyHelper;
@@ -39,6 +41,10 @@ use Throwable;
  * @property ?string $url
  * @property ?string $url_normalized
  * @property ?string $last_outcome
+ * @property ?int $parent_url_id
+ * @property ?string $comparison_key
+ * @property ?Carbon $last_seen_at
+ * @property ?Url $parent
  * @property ?Carbon $last_attempt_at
  * @property float $price_factor
  * @property string $product_name_short
@@ -82,6 +88,7 @@ class Url extends Model
             'created_at' => 'datetime',
             'availability' => StockStatus::class,
             'last_attempt_at' => 'datetime',
+            'last_seen_at' => 'datetime',
         ];
     }
 
@@ -315,8 +322,94 @@ class Url extends Model
         return $changed;
     }
 
+    /**
+     * The comparison link (Ceneo) this offer line comes from.
+     *
+     * @return BelongsTo<Url, $this>
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(Url::class, 'parent_url_id');
+    }
+
+    /**
+     * Offer lines read from this comparison link.
+     *
+     * @return HasMany<Url, $this>
+     */
+    public function children(): HasMany
+    {
+        return $this->hasMany(Url::class, 'parent_url_id');
+    }
+
+    /**
+     * A link to a product on a comparison site (its own price is "the lowest").
+     */
+    public function isComparisonSource(): bool
+    {
+        return $this->parent_url_id === null && filled($this->store?->comparison);
+    }
+
+    /**
+     * A store offer read from a comparison link's offer list. It never fetches
+     * a page itself.
+     */
+    public function isComparisonChild(): bool
+    {
+        return $this->parent_url_id !== null;
+    }
+
+    /**
+     * Priority of the line for its store: direct link 0, Ceneo 1, Skąpiec 2.
+     */
+    public function linePriority(): int
+    {
+        if (! $this->isComparisonChild()) {
+            return 0;
+        }
+
+        return $this->parent?->store?->comparison === Store::COMPARISON_SKAPIEC ? 2 : 1;
+    }
+
+    /**
+     * Whether the last read works for visibility: ok, skipped (a store pause
+     * does not switch lines) or never read.
+     */
+    public function lastReadWorks(): bool
+    {
+        return in_array($this->last_outcome, [null, FetchOutcome::Ok->value, FetchOutcome::Skipped->value], true);
+    }
+
+    /**
+     * Hidden ("zapas") when the product has another link to the same store with
+     * a higher priority whose last read works. Several direct links to one
+     * store are all visible (R17).
+     *
+     * @param  ?\Illuminate\Support\Collection<int, Url>  $siblings  the product's links (loaded once by the caller)
+     */
+    public function isSuppressed(?\Illuminate\Support\Collection $siblings = null): bool
+    {
+        if (! $this->isComparisonChild()) {
+            return false;
+        }
+
+        $siblings ??= self::query()->with(['store', 'parent.store'])->where('product_id', $this->product_id)->get();
+        $priority = $this->linePriority();
+
+        return $siblings->contains(fn (Url $other): bool => $other->getKey() !== $this->getKey()
+            && (int) $other->store_id === (int) $this->store_id
+            && ! $other->isComparisonSource()
+            && $other->linePriority() < $priority
+            && $other->lastReadWorks());
+    }
+
     public function scrape(?FetchContext $ctx = null): array
     {
+        // An offer line never fetches a page: its price comes with the comparison page.
+        if ($this->isComparisonChild()) {
+            return [];
+        }
+
         $ctx ??= FetchContext::panel();
 
         return $this->url
@@ -545,6 +638,12 @@ class Url extends Model
             return null;
         }
 
+        // An offer line never fetches a page, runs AI or records an attempt; its
+        // price comes from the comparison page (ComparisonOfferSync).
+        if ($this->isComparisonChild() && (is_null($price) || $price === '')) {
+            return $this->prices()->latest('id')->first();
+        }
+
         $availabilityChanged = false;
         $stockStatus = null;
 
@@ -566,6 +665,11 @@ class Url extends Model
             $this->lastFetchOutcome = ScrapeUrl::outcomeOf($scrapeResult);
         } else {
             $this->lastFetchOutcome = $scrapeResult !== null ? ScrapeUrl::outcomeOf($scrapeResult) : FetchOutcome::Ok;
+        }
+
+        // A comparison page: expand its offer list into lines per store.
+        if ($scrapeResult !== null && $this->isComparisonSource()) {
+            $scrapeResult = $this->syncComparisonOffers($scrapeResult);
         }
 
         // One attempt per call, written at the end (after any AI repair). A price
@@ -621,6 +725,38 @@ class Url extends Model
             'price_factor' => $priceFactor,
             'store_id' => $this->store_id,
         ]);
+    }
+
+    /**
+     * After reading a comparison page: save its offers as lines per store. A
+     * page with a price but no offers found means the layout changed: the
+     * attempt is "no price" (so it shows on "Problems"), not a quiet empty list.
+     * When the page could not be read, the lines get its outcome.
+     *
+     * @param  array<string, mixed>  $result
+     * @return array<string, mixed>
+     */
+    protected function syncComparisonOffers(array $result): array
+    {
+        $sync = new ComparisonOfferSync;
+        $outcome = $this->lastFetchOutcome ?? FetchOutcome::NetworkError;
+
+        if ($outcome !== FetchOutcome::Ok) {
+            $sync->markChildren($this, $outcome);
+
+            return $result;
+        }
+
+        $count = $sync->sync($this, (new CeneoOfferListParser)->parse((string) data_get($result, 'body', '')));
+
+        if ($count === 0) {
+            $this->lastFetchOutcome = FetchOutcome::NoPrice;
+            $result['errors'] = array_merge((array) data_get($result, 'errors', []), [
+                'empty_offer_list' => ['message' => __('Empty offer list'), 'code' => 0],
+            ]);
+        }
+
+        return $result;
     }
 
     /**
@@ -721,6 +857,11 @@ class Url extends Model
      */
     public function shouldNotifyOnPrice(Price $price): bool
     {
+        // A link that is not counted (comparison page, hidden offer line) never notifies.
+        if ($this->product !== null && ! in_array((int) $this->getKey(), $this->product->countedUrlIds(), true)) {
+            return false;
+        }
+
         /** @var ?Price $lastNotified */
         $lastNotified = $this->lastNotifiedPrice();
 

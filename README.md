@@ -28,8 +28,20 @@ wymienia plik [NOTICE](NOTICE).
 *   Kolekcje produktów (dwa poziomy) z szablonem progów i pól atrybutów;
     produkty tylko w wyłączonych kolekcjach nie są sprawdzane; pulpit
     grupuje produkty według kolekcji (grupowanie po tagach w ustawieniach).
-*   Kolejne etapy (listy ofert z Ceneo i Skąpca, dostawcy AI) opisuje
-    dokument projektowy autora.
+*   Link do produktu na Ceneo daje osobną linię ceny dla każdego sklepu
+    z listy ofert. Link bezpośredni ma pierwszeństwo przed ofertą z Ceneo;
+    gdy przestaje działać, widoczna staje się oferta z Ceneo („zapas”).
+*   Kolejne etapy (Skąpiec, dostawcy AI) opisuje dokument projektowy autora.
+
+## Ceneo
+
+Dodaj link do produktu na Ceneo jak każdy inny link. Sklep `ceneo.pl` musi
+mieć ustawione porównanie (`settings.comparison = ceneo`; migracja ustawia
+je dla istniejącego sklepu Ceneo). Każdy odczyt strony Ceneo zapisuje cenę
+każdego sklepu z listy ofert jako osobną linię, bez otwierania linków ofert.
+Gdy Ceneo zmieni układ strony i lista ofert będzie pusta, odczyt trafi na
+stronę „Problemy” jako „brak ceny – pusta lista ofert”. Selektory listy są
+w `config/dipalert.php` (`comparison.ceneo`).
 
 ## Dzienny e-mail
 

@@ -68,7 +68,14 @@ trait HasScraperTrait
                 ])
                 ->reactive()
                 ->default(ScraperService::Http)
-                ->helperText(fn (Get $get): ?string => self::scraperServiceHint($get)),
+                // A comparison site (Ceneo) works only with plain http.
+                ->disabled(fn (Get $get): bool => filled($get('settings.comparison')))
+                ->dehydrated()
+                ->helperText(fn (Get $get): ?string => filled($get('settings.comparison'))
+                    ? __('A comparison site always uses a plain HTTP request.')
+                    : self::scraperServiceHint($get)),
+
+            Hidden::make('settings.comparison'),
 
             // Kept in the form so a save does not drop them.
             Hidden::make('settings.suggested_scraper_service'),

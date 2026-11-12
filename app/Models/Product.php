@@ -254,6 +254,80 @@ class Product extends Model
     }
 
     /**
+     * Counted links: the ones the user sees as the product price. Not a
+     * comparison source link, and not an offer line hidden by a higher-priority
+     * line of the same store. An offer line that left the list is not counted.
+     *
+     * @return EloquentCollection<int, Url>
+     */
+    public function countedUrls(): EloquentCollection
+    {
+        /** @var EloquentCollection<int, Url> $urls */
+        $urls = $this->urls()->with(['store', 'parent.store'])->get();
+
+        return $urls
+            ->filter(fn (Url $url): bool => ! $url->isComparisonSource()
+                && ! $url->isSuppressed($urls)
+                && (! $url->isComparisonChild() || $url->lastReadWorks()))
+            ->values();
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function countedUrlIds(): array
+    {
+        return $this->countedUrls()->pluck('id')->map(fn ($id): int => (int) $id)->all();
+    }
+
+    /**
+     * Key of the alert reference for a link: store:<id>, or url:<id> when the
+     * product has several direct links to that store.
+     */
+    public function alertRefKey(Url $url): string
+    {
+        $directToStore = $this->urls()
+            ->whereNull('parent_url_id')
+            ->where('store_id', $url->store_id)
+            ->count();
+
+        return ! $url->isComparisonChild() && $directToStore > 1
+            ? 'url:'.$url->getKey()
+            : 'store:'.$url->store_id;
+    }
+
+    /**
+     * Move the alert reference of the link's line to the new price and return
+     * the old reference price, or null when there is nothing to compare with:
+     * no reference yet, the reference belongs to another link of the line (the
+     * visible line switched), or it is not this link's previous price (the
+     * link was hidden at its previous read). Then the new price only becomes
+     * the reference.
+     */
+    public function takeAlertReference(Url $url, Price $price): ?float
+    {
+        $key = $this->alertRefKey($url);
+
+        /** @var ?PriceAlertRef $ref */
+        $ref = PriceAlertRef::query()->where('product_id', $this->getKey())->where('ref_key', $key)->first();
+        $previousId = $url->previousPrice($price)?->getKey();
+
+        $comparable = $ref !== null
+            && (int) $ref->url_id === (int) $url->getKey()
+            && $previousId !== null
+            && (int) $ref->price_id === (int) $previousId;
+
+        $oldPrice = $comparable ? (float) $ref->price : null;
+
+        PriceAlertRef::query()->updateOrCreate(
+            ['product_id' => $this->getKey(), 'ref_key' => $key],
+            ['url_id' => $url->getKey(), 'price_id' => $price->getKey(), 'price' => $price->price],
+        );
+
+        return $oldPrice;
+    }
+
+    /**
      * Product has many users.
      */
     public function user(): BelongsTo
@@ -550,6 +624,7 @@ class Product extends Model
         // Include out-of-stock URLs that have no price history (e.g. price 0).
         /** @var EloquentCollection<int, Url> $outOfStockUrls */
         $outOfStockUrls = $this->urls()
+            ->whereIn('id', $this->countedUrlIds())
             ->whereNotNull('availability')
             ->whereNotIn('id', $history->keys())
             ->with('store')
@@ -661,6 +736,8 @@ class Product extends Model
             )
             ->join('urls', 'prices.url_id', '=', 'urls.id')
             ->where('urls.product_id', $this->id)
+            // Only counted links make the product price, history and stats.
+            ->whereIn('urls.id', $this->countedUrlIds())
             ->orderByDesc('prices.created_at');
     }
 
@@ -673,8 +750,11 @@ class Product extends Model
     {
         $ctx ??= FetchContext::panel();
 
+        // Comparison pages first, so their offer lines are fresh; reading an offer
+        // line is not a fetch and never a failure.
         $failed = $this->urls
-            ->filter(fn (Url $url) => $url->updatePrice(null, null, $ctx) === null) // @phpstan-ignore-line
+            ->sortBy(fn ($url): int => $url instanceof Url && $url->isComparisonChild() ? 1 : 0)
+            ->filter(fn (Url $url) => $url->updatePrice(null, null, $ctx) === null && ! $url->isComparisonChild()) // @phpstan-ignore-line
             ->values();
 
         $this->updatePriceCache();
@@ -785,7 +865,8 @@ class Product extends Model
         if (! empty($this->notify_percent)) {
             // Get first price.
             /** @var ?Price $firstPriceModel */
-            $firstPriceModel = $this->prices()->oldest('prices.created_at')->first();
+            // The first price among the counted links.
+            $firstPriceModel = $this->prices()->whereIn('prices.url_id', $this->countedUrlIds())->oldest('prices.created_at')->first();
             $firstPrice = $firstPriceModel?->price;
 
             // No first price, can't calculate percent.
@@ -836,7 +917,7 @@ class Product extends Model
      * thresholds are skipped; with none set the rule is off. A change of 0
      * never notifies.
      */
-    public function shouldNotifyOnThreshold(Url $url, Price $price): bool
+    public function shouldNotifyOnThreshold(Url $url, Price $price, ?float $reference = null): bool
     {
         $percent = $this->notify_change_percent !== null ? (float) $this->notify_change_percent : null;
         $amount = $this->notify_change_amount !== null ? (float) $this->notify_change_amount : null;
@@ -845,13 +926,17 @@ class Product extends Model
             return false;
         }
 
-        $previous = $url->previousPrice($price);
+        if ($reference === null) {
+            $previous = $url->previousPrice($price);
 
-        if ($previous === null) {
-            return false;
+            if ($previous === null) {
+                return false;
+            }
+
+            $reference = (float) $previous->price;
         }
 
-        $old = (float) $previous->price;
+        $old = $reference;
         $change = round((float) $price->price - $old, 2);
 
         if ($change == 0.0) {

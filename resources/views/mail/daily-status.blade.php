@@ -36,6 +36,14 @@ Według źródła:
 @endforeach
 @endif
 
+@if (! empty($report['fallbackOnly']))
+## Działa tylko zapas
+
+@foreach ($report['fallbackOnly'] as $row)
+- {{ $row['product'] }} — {{ $row['store'] }} (oferta z porównywarki, link bezpośredni nie działa)
+@endforeach
+@endif
+
 @if ($report['paused'] !== [])
 ## Wstrzymane sklepy
 

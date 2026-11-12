@@ -79,6 +79,21 @@ return [
     ],
 
     /*
+     * Comparison sites. Ceneo selectors checked on saved pages (readtest
+     * 19-21). The offer list items, not every element with data-shopurl:
+     * the page also has promoted offers of other products and a sticky bar.
+     */
+    'comparison' => [
+        'ceneo' => [
+            'offer_selector' => 'li.product-offers__list__item[data-shopurl]',
+            'domain_attribute' => 'data-shopurl',
+            'price_attribute' => 'data-price',
+            'name_selector' => '.product-offer__logo img',
+            'name_attribute' => 'alt',
+        ],
+    ],
+
+    /*
      * Store logos.
      */
     'fetch_store_logos' => true,

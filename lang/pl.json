@@ -114,5 +114,11 @@
     "Tags": "Tagi",
     "A collection cannot be its own parent.": "Kolekcja nie może być swoją kolekcją nadrzędną.",
     "Collections have at most two levels: the parent already has a parent.": "Kolekcje mają najwyżej dwa poziomy: kolekcja nadrzędna ma już swoją nadrzędną.",
-    "A collection with subcollections cannot get a parent.": "Kolekcja z podkolekcjami nie może mieć kolekcji nadrzędnej."
+    "A collection with subcollections cannot get a parent.": "Kolekcja z podkolekcjami nie może mieć kolekcji nadrzędnej.",
+    "Empty offer list": "Pusta lista ofert",
+    "A comparison site always uses a plain HTTP request.": "Porównywarka zawsze używa zwykłego zapytania HTTP.",
+    "Offer from :site": "Oferta z :site",
+    "comparison site": "porównywarka",
+    "not on the list since :date": "brak na liście od :date",
+    "backup": "zapas"
 }

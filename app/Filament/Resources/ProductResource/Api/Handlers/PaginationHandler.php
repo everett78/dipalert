@@ -82,7 +82,7 @@ class PaginationHandler extends Handlers
                     return;
                 }
 
-                $query->whereHas('urls', fn (Builder $urlQuery) => $urlQuery->where('url_normalized', $normalized));
+                $query->whereHas('urls', fn (Builder $urlQuery) => $urlQuery->whereNull('parent_url_id')->where('url_normalized', $normalized));
             })
                 // Laravel's ConvertEmptyStringsToNull middleware turns filter[url]=
                 // into a null value before Spatie sees it. AllowedFilter::filter() skips
@@ -193,6 +193,7 @@ class PaginationHandler extends Handlers
         }
 
         return Url::query()
+            ->whereNull('parent_url_id')
             ->where('url_normalized', $normalized)
             ->whereIn('product_id', $productIds)
             ->pluck('id')

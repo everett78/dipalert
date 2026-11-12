@@ -6,6 +6,7 @@ use App\Enums\FetchOutcome;
 use App\Enums\FetchSource;
 use App\Models\FetchAttempt;
 use App\Models\FetchPacing;
+use App\Models\Url;
 use App\Services\Helpers\SettingsHelper;
 use App\Services\Security\UrlGuard;
 use Carbon\CarbonInterface;
@@ -89,6 +90,7 @@ class DailyStatusReport
                 ->groupBy('store')
                 ->map(fn (Collection $links): int => $links->count())
                 ->all(),
+            'fallbackOnly' => $this->fallbackOnly(),
             'paused' => $paused->map(fn (FetchPacing $pacing): array => [
                 'host' => $pacing->host,
                 'until' => $pacing->paused_until,
@@ -153,6 +155,42 @@ class DailyStatusReport
                 'url' => (string) $attempt->url?->url,
             ])
             ->values();
+    }
+
+    /**
+     * "Działa tylko zapas": offer lines that are visible because the direct
+     * link to their store failed on its last read.
+     *
+     * @return list<array{product: string, store: string}>
+     */
+    protected function fallbackOnly(): array
+    {
+        $children = Url::query()
+            ->whereNotNull('parent_url_id')
+            ->where('last_outcome', FetchOutcome::Ok->value)
+            ->with(['product', 'store'])
+            ->get();
+
+        $rows = [];
+
+        foreach ($children as $child) {
+            $directFailed = Url::query()
+                ->where('product_id', $child->product_id)
+                ->whereNull('parent_url_id')
+                ->where('store_id', $child->store_id)
+                ->whereNotNull('last_outcome')
+                ->whereNotIn('last_outcome', [FetchOutcome::Ok->value, FetchOutcome::Skipped->value])
+                ->exists();
+
+            if ($directFailed) {
+                $rows[] = [
+                    'product' => (string) ($child->product->title ?? '—'),
+                    'store' => (string) ($child->store->name ?? '—'),
+                ];
+            }
+        }
+
+        return $rows;
     }
 
     /**
