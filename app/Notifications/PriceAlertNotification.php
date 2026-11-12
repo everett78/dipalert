@@ -93,6 +93,7 @@ class PriceAlertNotification extends Notification implements ShouldQueue
             'buyUrl' => $this->url->buy_url,
             'buyText' => __('Buy now from :store', ['store' => $this->url->store_name]),
             'storeName' => $this->url->store_name,
+            'storeLogoPath' => $this->url->store?->logoFilePath(),
             'productUrl' => $this->getUrl(),
             'productName' => Str::limit(($this->product->title ?? 'Unknown product'), 100),
             'imgUrl' => $this->product?->image,

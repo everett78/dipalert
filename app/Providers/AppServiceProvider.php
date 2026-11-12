@@ -6,6 +6,7 @@ use App\Enums\NotificationMethods;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
+use App\Observers\StoreObserver;
 use App\Policies\ProductPolicy;
 use App\Policies\StorePolicy;
 use App\Policies\UserPolicy;
@@ -50,6 +51,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(Store::class, StorePolicy::class);
         Gate::policy(User::class, UserPolicy::class);
+
+        // Fetch a logo for every new store (DipAlert).
+        Store::observe(StoreObserver::class);
     }
 
     protected function registerFilamentSettings(): void

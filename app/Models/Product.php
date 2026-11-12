@@ -49,6 +49,7 @@ use Illuminate\Support\Str;
  * @property ?string $notify_change_percent
  * @property ?string $notify_change_amount
  * @property ?string $notify_change_direction
+ * @property ?array $chart_settings
  * @property ?int $refresh_interval
  * @property ?Carbon $next_check_at
  * @property bool $paused
@@ -95,6 +96,7 @@ class Product extends Model
         'notify_change_percent' => 'decimal:2',
         'notify_change_amount' => 'decimal:2',
         'notify_change_direction' => 'string',
+        'chart_settings' => 'array',
         'next_check_at' => 'datetime',
         'refresh_interval' => 'integer',
         'paused' => 'boolean',
@@ -709,13 +711,15 @@ class Product extends Model
 
     /**
      * Get the price history for this product.
+     *
+     * @param  ?int  $days  how many days back (null = all history)
      */
-    public function getPriceHistory(string $column = 'price'): Collection
+    public function getPriceHistory(string $column = 'price', ?int $days = 365): Collection
     {
         $priceColumn = $column === 'unit_price' ? 'unit_price' : 'price';
 
         return $this->getAllPricesQuery()
-            ->whereDate('prices.created_at', '>=', now()->subYear())
+            ->when($days !== null, fn ($query) => $query->whereDate('prices.created_at', '>=', now()->subDays((int) $days)))
             ->where('prices.price', '>', 0)
             ->orderBy('prices.created_at')
             ->get()

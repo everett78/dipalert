@@ -12,11 +12,13 @@ use App\Filament\Pages\AppSettingsPage;
 use App\Filament\Resources\StoreResource\Pages\CreateStore;
 use App\Filament\Resources\StoreResource\Pages\EditStore;
 use App\Filament\Resources\StoreResource\Pages\ListStores;
+use App\Jobs\FetchStoreLogoJob;
 use App\Models\Store;
 use App\Models\Url;
 use App\Providers\Filament\AdminPanelProvider;
 use App\Rules\StoreUrl;
 use App\Services\Helpers\IntegrationHelper;
+use App\Services\StoreLogoFetcher;
 use Filament\Forms;
 use Filament\Forms\Components\Actions;
 use Filament\Forms\Components\Actions\Action as FormAction;
@@ -26,12 +28,15 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\View;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\FontWeight;
+use Filament\Tables;
 use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Actions\BulkActionGroup;
 use Filament\Tables\Actions\DeleteBulkAction;
 use Filament\Tables\Actions\EditAction;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\Layout\Split;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -69,6 +74,21 @@ class StoreResource extends Resource
                         ->label('Name')
                         ->hintIcon(Icons::Help->value, 'The name of the store')
                         ->required(),
+                    // PNG, JPEG, ICO or WebP up to 512 KB; never SVG (it can hold a script).
+                    Forms\Components\FileUpload::make('logo_path')
+                        ->label(__('Logo'))
+                        ->disk('public')
+                        ->directory('logos')
+                        ->image()
+                        ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon'])
+                        ->maxSize((int) (config('dipalert.logo_max_bytes', 524288) / 1024))
+                        ->rule(fn () => function (string $attribute, mixed $value, \Closure $fail): void {
+                            if ($value instanceof \Illuminate\Http\UploadedFile
+                                && StoreLogoFetcher::detectType((string) file_get_contents($value->getRealPath())) === null) {
+                                $fail(__('The logo must be a PNG, JPEG, ICO or WebP image.'));
+                            }
+                        })
+                        ->imagePreviewHeight('40'),
                 ])
                     ->columns(1)
                     ->description(__('Stores are shared between all users in :name', ['name' => config('app.name')]))
@@ -271,6 +291,13 @@ class StoreResource extends Resource
             ->columns([
                 Split::make([
                     Split::make([
+                        ImageColumn::make('logo_path')
+                            ->label('')
+                            ->disk('public')
+                            ->height(20)
+                            ->width(20)
+                            ->defaultImageUrl(null)
+                            ->grow(false),
                         TextColumn::make('name')
                             ->searchable()
                             ->sortable()
@@ -307,6 +334,14 @@ class StoreResource extends Resource
                     ->label('Scraper'),
             ])
             ->actions([
+                Tables\Actions\Action::make('fetchLogo')
+                    ->label(__('Fetch logo'))
+                    ->icon('heroicon-o-photo')
+                    ->color('gray')
+                    ->action(function (Store $record): void {
+                        FetchStoreLogoJob::dispatch($record);
+                        Notification::make()->title(__('Fetching the logo in the background'))->success()->send();
+                    }),
                 EditAction::make(),
             ])
             ->bulkActions([

@@ -45,6 +45,7 @@
                                 @if ($latestPrice->hasPriceFactor())
                                     {{ __('per :unit', ['unit' => $latestPrice->getUnitOfMeasure()]) }}
                                 @endif
+                                <x-store-logo :store-id="$latestPrice->getStoreId()" :size="14" class="ml-1" />
                                 {{ '@'.$latestPrice->getStoreName() }}
                             </span>
                         @else

@@ -33,7 +33,11 @@ class UrlsTableWidget extends BaseWidget
                 Tables\Columns\Layout\Split::make([
                     Tables\Columns\Layout\Stack::make([
                         Tables\Columns\TextColumn::make('store.name')
-                            ->label('Store'),
+                            ->label('Store')
+                            ->html()
+                            ->formatStateUsing(fn ($state, Url $record): HtmlString => new HtmlString(
+                                view('components.store-logo', ['store' => $record->store, 'withName' => true])->render()
+                            )),
                         Tables\Columns\TextColumn::make('url')
                             ->label('Url')
                             ->color('gray')

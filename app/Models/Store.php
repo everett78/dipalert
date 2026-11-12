@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Spatie\Sluggable\HasSlug;
@@ -37,6 +38,8 @@ use Spatie\Sluggable\SlugOptions;
  * @property bool $ai_self_healing_disabled
  * @property bool $missing_price_out_of_stock
  * @property int $min_interval_seconds
+ * @property ?string $logo_path
+ * @property ?string $logo_url
  * @property ?string $suggested_scraper_service
  * @property ?string $last_test_outcome
  * @property string $locale
@@ -62,6 +65,7 @@ class Store extends Model
         'notes',
         'user_id',
         'cookies',
+        'logo_path',
     ];
 
     protected function casts(): array
@@ -210,6 +214,30 @@ class Store extends Model
                 return data_get($this->settings, 'scraper_service', ScraperService::Http->value);
             }
         );
+    }
+
+    /**
+     * Public address of the store logo, or null.
+     */
+    public function logoUrl(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => filled($this->logo_path)
+                ? Storage::disk('public')->url((string) $this->logo_path)
+                : null,
+        );
+    }
+
+    /**
+     * Absolute path of the logo file (for e-mail attachments), or null.
+     */
+    public function logoFilePath(): ?string
+    {
+        if (blank($this->logo_path) || ! Storage::disk('public')->exists((string) $this->logo_path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->path((string) $this->logo_path);
     }
 
     /**

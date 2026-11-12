@@ -8,24 +8,23 @@ use App\Providers\Filament\AdminPanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Livewire\Attributes\On;
 
 /**
  * @property Product $record
  */
 class PriceHistoryChart extends ChartWidget
 {
-    const CHART_COLORS = [
-        AdminPanelProvider::PRIMARY_COLOR,
-        Color::Pink,
-        Color::Yellow,
-        Color::Purple,
-        Color::Emerald,
-        Color::Violet,
-        Color::Sky,
-        Color::Amber,
-        Color::Blue,
-    ];
+    public const string PERIOD_ALL = 'all';
+
+    /**
+     * Periods offered above the chart (days, or "all").
+     */
+    public const array PERIODS = [7, 30, 90, 365, self::PERIOD_ALL];
+
+    public const int DEFAULT_PERIOD = 365;
 
     public Model|Product|null $record = null;
 
@@ -45,23 +44,88 @@ class PriceHistoryChart extends ChartWidget
         ];
     }
 
+    /**
+     * The chart settings changed above the chart: reload them and redraw.
+     */
+    #[On('chart-settings-updated')]
+    public function refreshChart(): void
+    {
+        $this->record->refresh();
+        $this->cachedData = null;
+    }
+
+    /**
+     * Days of history to show (null = all), from the product chart settings.
+     */
+    public static function periodDays(Product $product): ?int
+    {
+        $period = data_get($product->chart_settings, 'period', self::DEFAULT_PERIOD);
+
+        if ($period === self::PERIOD_ALL) {
+            return null;
+        }
+
+        return in_array((int) $period, self::PERIODS, true) ? (int) $period : self::DEFAULT_PERIOD;
+    }
+
+    /**
+     * Store ids chosen for the chart; empty = all stores.
+     *
+     * @return list<int>
+     */
+    public static function selectedStores(Product $product): array
+    {
+        return array_values(array_map('intval', (array) data_get($product->chart_settings, 'stores', [])));
+    }
+
+    /**
+     * Retail price with a period of up to a year comes from the price cache (as
+     * before), cut to the period. "All" or the unit price is read directly.
+     *
+     * @return Collection<int|string, mixed>
+     */
+    protected function history(): Collection
+    {
+        $days = self::periodDays($this->record);
+        $column = $this->filter === 'unit_price' ? 'unit_price' : 'price';
+
+        if ($column === 'price' && $days !== null) {
+            $from = Carbon::now()->subDays($days)->toDateString();
+
+            return $this->record->getPriceHistoryCached('price')
+                ->map(fn (Collection $prices) => $prices->filter(fn ($price, string $date): bool => $date >= $from));
+        }
+
+        return $this->record->getPriceHistory($column, $days);
+    }
+
     protected function getData(): array
     {
-        $showUnitPrice = $this->filter === 'unit_price';
-        $history = $this->record->getPriceHistoryCached($showUnitPrice ? 'unit_price' : 'price');
+        $history = $this->history();
+        $stores = self::selectedStores($this->record);
+
+        $urls = Url::with('store')->findMany($history->keys())
+            ->filter(fn (Url $url): bool => $stores === [] || in_array((int) $url->store_id, $stores, true))
+            ->values();
+
+        // Only the chosen lines, so "Najniższa cena" uses the same stores.
+        $history = $history->only($urls->pluck('id')->all())
+            ->filter(fn (Collection $prices): bool => $prices->isNotEmpty());
 
         $datasets = [];
 
-        $urls = Url::findMany($history->keys())->values();
-
         foreach ($urls as $idx => $url) {
-            $data = $history->get($url->id);
+            if (! $history->has($url->id)) {
+                continue;
+            }
+
+            $color = self::datasetColor($idx);
 
             $datasets[] = [
                 'label' => $url->store?->name,
-                'data' => $data,
-                'backgroundColor' => 'rgba('.$this->getDatasetColor($idx).', 0.4)',
-                'borderColor' => 'rgba('.$this->getDatasetColor($idx).', 0.9)',
+                'data' => $history->get($url->id),
+                'backgroundColor' => 'rgba('.$color.', 0.4)',
+                'borderColor' => 'rgba('.$color.', 0.9)',
                 'fill' => true,
                 'tension' => 0.2,
             ];
@@ -69,9 +133,8 @@ class PriceHistoryChart extends ChartWidget
 
         $labels = $this->getLabels($history);
 
-        // Daily best = lowest price across all stores per day, using the SAME
-        // column ($history respects the unit/retail filter) so the line stays
-        // consistent with the per-store datasets.
+        // Daily best = lowest price across the chosen stores per day, using the
+        // SAME column ($history respects the unit/retail filter).
         $bestByDate = [];
         foreach ($history as $urlHistory) {
             foreach ($urlHistory as $date => $price) {
@@ -83,7 +146,7 @@ class PriceHistoryChart extends ChartWidget
         }
 
         $datasets[] = [
-            'label' => 'Best price',
+            'label' => 'Najniższa cena',
             'data' => collect($labels)->map(fn (string $date) => $bestByDate[$date] ?? null)->all(),
             'borderColor' => 'rgba('.AdminPanelProvider::PRIMARY_COLOR[600].', 1)',
             'backgroundColor' => 'rgba('.AdminPanelProvider::PRIMARY_COLOR[600].', 0)',
@@ -144,7 +207,7 @@ class PriceHistoryChart extends ChartWidget
 
     protected function getLabels(Collection $history): array
     {
-        return $history->map(fn ($prices) => $prices->keys())
+        return $history->map(fn ($prices) => collect($prices)->keys())
             ->flatten()
             ->unique()
             ->sort()
@@ -152,12 +215,13 @@ class PriceHistoryChart extends ChartWidget
             ->toArray();
     }
 
-    protected function getDatasetColor(int $idx)
+    /**
+     * Line colour (RGB) from the palette in config/dipalert.php.
+     */
+    public static function datasetColor(int $idx): string
     {
-        if (isset(self::CHART_COLORS[$idx])) {
-            return self::CHART_COLORS[$idx][500];
-        } else {
-            return Color::Gray[500];
-        }
+        $palette = (array) config('dipalert.chart_palette', []);
+
+        return $palette[$idx] ?? Color::Gray[500];
     }
 }

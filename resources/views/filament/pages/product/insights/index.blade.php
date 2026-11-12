@@ -122,6 +122,9 @@
                 }, 300);
             "
         >
+            @if (isset($this) && method_exists($this, 'chartSettingsForm'))
+                <div class="mb-4" data-test="chart-settings">{{ $this->chartSettingsForm }}</div>
+            @endif
             @livewire(\App\Filament\Resources\ProductResource\Widgets\PriceHistoryChart::class, ['record' => $record, 'lazy' => true])
         </div>
 
