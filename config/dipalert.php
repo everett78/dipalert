@@ -48,5 +48,6 @@ return [
     'interactive_max_wait_seconds' => 15,
     'pause_outside_run_minutes' => 60,
     'pause_max_hours' => 24,
+    'pacing_lock_wait_seconds' => 5,
     'retry_outcomes' => ['network_error'],
 ];

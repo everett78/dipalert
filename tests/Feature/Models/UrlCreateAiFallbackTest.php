@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Models;
 
+use App\Dto\FetchContext;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\Url;
@@ -34,7 +35,8 @@ class UrlCreateAiFallbackTest extends TestCase
 
         $this->mockScrape(50, 'Healed Widget');
 
-        $urlModel = Url::createFromUrl(self::URL, productId: $product->id, createStore: false);
+        // AI repair runs in the background (a queued add), never while the panel waits.
+        $urlModel = Url::createFromUrl(self::URL, productId: $product->id, createStore: false, ctx: FetchContext::panelQueued());
 
         $this->assertInstanceOf(Url::class, $urlModel);
         $this->assertSame($product->id, $urlModel->product_id);
@@ -52,7 +54,7 @@ class UrlCreateAiFallbackTest extends TestCase
 
         $this->mockScrape('', '');
 
-        $result = Url::createFromUrl(self::URL, createStore: false);
+        $result = Url::createFromUrl(self::URL, createStore: false, ctx: FetchContext::panelQueued());
 
         $this->assertFalse($result);
         $this->assertDatabaseCount('stores', 0);

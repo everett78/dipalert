@@ -225,7 +225,7 @@ class MetaExtractionService
                 $attributes = AutoCreateStore::buildAttributes($url, $config['fields']);
 
                 if ($config['usedBrowser']) {
-                    data_set($attributes, 'settings.scraper_service', ScraperService::Api->value);
+                    data_set($attributes, 'settings.scraper_service', ScraperService::FlareSolverr->value);
                 }
 
                 $price = data_get($config, 'extracted.price');

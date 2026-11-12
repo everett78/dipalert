@@ -1,3 +1,22 @@
 {
-    "Happy savings from": "Udanych zakupów życzy"
+    "Happy savings from": "Udanych zakupów życzy",
+    "FlareSolverr (browser, for pages protected against bots, e.g. Allegro)": "FlareSolverr (przeglądarka, dla stron z ochroną przed botami, np. Allegro)",
+    "Slower; use when a store blocks plain requests": "Wolniejsza; gdy sklep blokuje zwykłe zapytania",
+    "Slower; a real browser through FlareSolverr. Use when a store blocks plain requests (e.g. Allegro).": "Wolniejsza; prawdziwa przeglądarka przez FlareSolverr. Gdy sklep blokuje zwykłe zapytania (np. Allegro).",
+    "Interval between requests (s)": "Odstęp między zapytaniami (s)",
+    "Minimum time between two requests to this store.": "Najkrótszy czas między dwoma zapytaniami do tego sklepu.",
+    "The store blocked the last request. Choose FlareSolverr and test again.": "Sklep zablokował ostatnie zapytanie. Wybierz FlareSolverr i powtórz test.",
+    "AI repair suggests FlareSolverr for this store. Choose it and test again.": "Naprawa AI proponuje FlareSolverr dla tego sklepu. Wybierz go i powtórz test.",
+    "The store blocked the request. Choose FlareSolverr in \"Change scraper\" below and test again.": "Sklep zablokował zapytanie. Wybierz FlareSolverr w polu „Change scraper” poniżej i powtórz test.",
+    "Store paused until :time": "Sklep w przerwie do :time",
+    "Store busy, try again in :seconds s": "Sklep zajęty, spróbuj za :seconds s",
+    "Lift the pause": "Zdejmij przerwę",
+    "Pause lifted": "Przerwa zdjęta",
+    "No price – AI repair in the background": "Brak ceny – naprawa AI w tle",
+    "The result will appear on the product page shortly.": "Wynik pojawi się za chwilę na stronie produktu.",
+    "Method": "Metoda",
+    "HTTP status": "Kod HTTP",
+    "Result": "Wynik",
+    "Unable to create a product": "Nie udało się utworzyć produktu",
+    ":url has no price, or no store matches it.": ":url nie ma ceny albo nie pasuje do żadnego sklepu."
 }

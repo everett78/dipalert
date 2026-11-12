@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Models;
 
+use App\Dto\FetchContext;
 use App\Models\Store;
 use App\Models\Url;
 use App\Services\AiConfigHealer;
@@ -29,7 +30,7 @@ class UrlHealingOrderTest extends TestCase
             ->with(Mockery::any(), Mockery::on(fn ($r) => data_get($r, 'price') === '9.99'))
             ->andReturnUsing(fn ($u, $r) => $r));
 
-        $price = $url->updatePrice(null, ['price' => null, 'body' => '<html></html>', 'availability' => null]);
+        $price = $url->updatePrice(null, ['price' => null, 'body' => '<html></html>', 'availability' => null], FetchContext::run());
 
         $this->assertNotNull($price);
         $this->assertSame(9.99, (float) $price->price);

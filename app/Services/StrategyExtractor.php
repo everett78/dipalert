@@ -16,12 +16,12 @@ class StrategyExtractor
      * May throw Jez500\WebScraperForLaravel\Exceptions\DomSelectorException on an
      * invalid selector/xpath; callers decide whether to swallow or surface it.
      */
-    public static function extract(WebScraperInterface $scraper, StandardStrategyDto $slot, string $field): ?string
+    public static function extract(WebScraperInterface $scraper, StandardStrategyDto $slot, string $field, ?string $pageUrl = null): ?string
     {
         $type = $slot->type;
 
         if ($type === ScraperStrategyType::SchemaOrg) {
-            return SchemaOrgService::parseSchemaOrg($scraper->getSchemaOrg(), $field)
+            return SchemaOrgService::parseSchemaOrg($scraper->getSchemaOrg(), $field, $pageUrl)
                 ?? SchemaOrgService::parseMicrodata($scraper->getBody(), $field);
         }
 

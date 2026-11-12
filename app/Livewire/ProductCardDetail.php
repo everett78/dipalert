@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Dto\FetchContext;
 use App\Filament\Resources\ProductResource\Actions\AddUrlAction;
 use App\Jobs\UpdateAllPricesJob;
 use App\Models\Product;
@@ -56,7 +57,7 @@ class ProductCardDetail extends Component implements HasActions, HasForms
             ->outlined(false)
             ->action(function () {
                 try {
-                    UpdateAllPricesJob::dispatch([$this->product->id]);
+                    UpdateAllPricesJob::dispatch([$this->product->id], FetchContext::panelQueued());
 
                     Notification::make('fetched_prices')
                         ->title(__('Prices updating in the background'))

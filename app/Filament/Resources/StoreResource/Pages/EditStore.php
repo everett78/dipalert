@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\StoreResource\Pages;
 
+use App\Enums\FetchOutcome;
 use App\Enums\ScraperService;
 use App\Exceptions\AiProviderException;
 use App\Filament\Resources\StoreResource;
+use App\Models\FetchPacing;
 use App\Models\Store;
 use App\Services\AiConfigHealer;
 use App\Services\AiExtractionService;
@@ -66,8 +68,52 @@ class EditStore extends EditRecord
             return;
         }
 
+        $outcome = ScrapeUrl::outcomeOf($scrape);
+        $scrape[ScrapeUrl::OUTCOME_KEY] = $outcome->value;
+        $scrape[ScrapeUrl::METHOD_KEY] ??= $store->scraper_service;
+        $scrape['paused_until'] = FetchPacing::pausedUntil(FetchPacing::hostFromUrl($url))?->format('H:i');
+        $scrape['pacing_host'] = FetchPacing::hostFromUrl($url);
+
+        $this->rememberTestOutcome($outcome);
+
         $this->testScrapeResult = $scrape;
         $this->testAiResult = null;
+    }
+
+    /**
+     * Keep the test outcome in the store settings (when the store is saved) and in
+     * the form, so a later save does not overwrite it.
+     */
+    protected function rememberTestOutcome(FetchOutcome $outcome): void
+    {
+        data_set($this->data, 'settings.last_test_outcome', $outcome->value);
+
+        /** @var Store $record */
+        $record = $this->getRecord();
+
+        if ($record->exists) {
+            $record->settings = array_merge((array) $record->settings, ['last_test_outcome' => $outcome->value]);
+            $record->saveQuietly();
+        }
+    }
+
+    /**
+     * "Zdejmij przerwę": lift the pause of the tested store host.
+     */
+    public function resumePacing(): void
+    {
+        $this->authorizeAccess();
+
+        $host = data_get($this->testScrapeResult, 'pacing_host');
+
+        if (blank($host)) {
+            return;
+        }
+
+        FetchPacing::resume((string) $host);
+        data_set($this->testScrapeResult, 'paused_until', null);
+
+        Notification::make()->title(__('Pause lifted'))->success()->send();
     }
 
     public function compareWithAi(): void
@@ -162,7 +208,7 @@ class EditStore extends EditRecord
         }
 
         if (data_get($this->healPreview, 'usedBrowser')) {
-            data_set($this->data, 'settings.scraper_service', ScraperService::Api->value);
+            data_set($this->data, 'settings.suggested_scraper_service', ScraperService::FlareSolverr->value);
         }
 
         $this->healPreview = null;

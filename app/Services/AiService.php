@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Dto\AiProviderConfigDto;
 use App\Enums\AiProvider;
 use App\Exceptions\AiProviderException;
+use App\Exceptions\BlockedUrlException;
 use App\Services\Ai\AiProviderHealth;
 use App\Services\Ai\ConfiguredStructuredAgent;
 use App\Services\Ai\SecretRedactor;
 use App\Services\Helpers\IntegrationHelper;
+use App\Services\Security\UrlGuard;
 use Closure;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Facades\Crypt;
@@ -199,6 +201,12 @@ class AiService
         }
 
         try {
+            UrlGuard::new()->assertServiceAllowed($baseUrl);
+        } catch (BlockedUrlException) {
+            return "The Ollama address {$baseUrl} is not allowed. Add its host to DIPALERT_ALLOWED_INTERNAL_HOSTS.";
+        }
+
+        try {
             $models = OllamaService::new()->listModels($baseUrl);
         } catch (Throwable $e) {
             Log::warning('Ollama reachability check failed.', ['exception' => $e::class]);
@@ -233,6 +241,13 @@ class AiService
         config(["ai.providers.{$driver}.key" => $this->decrypt($provider->apiKey)]);
 
         if (filled($provider->baseUrl)) {
+            // A base URL in the home network is allowed only for listed services (Ollama).
+            try {
+                UrlGuard::new()->assertServiceAllowed((string) $provider->baseUrl);
+            } catch (BlockedUrlException $e) {
+                throw new AiProviderException('The AI provider address is not allowed ('.$e->reason.').', previous: $e);
+            }
+
             config(["ai.providers.{$driver}.url" => $provider->baseUrl]);
         }
     }

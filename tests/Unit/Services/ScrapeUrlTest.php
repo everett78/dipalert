@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Services;
 
+use App\Dto\FetchContext;
 use App\Enums\StockStatus;
 use App\Models\Store;
 use App\Models\User;
@@ -92,13 +93,25 @@ class ScrapeUrlTest extends TestCase
 
         $this->mockScrape('invalid', 'invalid');
 
-        $scrapeUrl = ScrapeUrl::new(self::TEST_URL);
+        // Background fetches retry right away; a panel fetch tries once.
+        $scrapeUrl = ScrapeUrl::new(self::TEST_URL)->withContext(FetchContext::run());
         $result = $scrapeUrl->scrape();
 
         $this->assertEmpty($result['title']);
         $this->assertEmpty($result['price']);
 
         $this->assertSame(1, LogMessage::where('message', 'Error scraping URL 3 times')->count());
+    }
+
+    public function test_panel_scrape_tries_once()
+    {
+        LogMessage::query()->delete();
+
+        $this->mockScrape('invalid', 'invalid');
+
+        ScrapeUrl::new(self::TEST_URL)->withContext(FetchContext::panel())->scrape();
+
+        $this->assertSame(1, LogMessage::where('message', 'Error scraping URL 1 times')->count());
     }
 
     public function test_get_store_returns_correct_store()

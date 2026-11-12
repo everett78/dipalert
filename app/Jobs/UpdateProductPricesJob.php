@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Dto\FetchContext;
 use App\Models\Product;
 use App\Models\Url;
 use App\Notifications\ScrapeFailNotification;
@@ -11,7 +12,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Sleep;
 
 class UpdateProductPricesJob implements ShouldQueue
 {
@@ -20,54 +20,63 @@ class UpdateProductPricesJob implements ShouldQueue
 
     public $timeout = PriceFetcherService::JOB_TIMEOUT;
 
-    public function __construct(public Product $product, public bool $logging) {}
+    public function __construct(public int $productId, public FetchContext $ctx, public bool $logging = false) {}
 
     public function handle(): void
     {
+        $product = Product::find($this->productId);
+
+        // The product was deleted after the job was queued.
+        if (! $product) {
+            return;
+        }
+
         if ($this->logging) {
-            logger()->info("Starting price fetch for: '{$this->product->title}'", [
-                'product_id' => $this->product->id,
+            logger()->info("Starting price fetch for: '{$product->title}'", [
+                'product_id' => $product->id,
             ]);
         }
 
-        $failedUrls = $this->product->updatePrices();
+        $failedUrls = $product->updatePrices($this->ctx);
         $successful = $failedUrls->isEmpty();
 
         if ($this->logging) {
             $prefix = $successful ? 'Successful' : 'Failed (or partially failed)';
             $method = $successful ? 'info' : 'warning';
-            logger()->{$method}("$prefix price fetch for product: '{$this->product->title}'", [
-                'product_id' => $this->product->id,
+            logger()->{$method}("$prefix price fetch for product: '{$product->title}'", [
+                'product_id' => $product->id,
             ]);
         }
 
         if (! $successful) {
-            $this->handleFailures($failedUrls);
+            $this->handleFailures($product, $failedUrls);
         }
 
-        Sleep::for(AppSettings::new()->sleep_seconds_between_scrape)->seconds();
+        // No fixed pause here: the pacing proxy keeps each store's interval.
     }
 
     /**
-     * Schedule a delayed retry for each failed URL, or notify immediately if
-     * delayed retries are disabled.
+     * Schedule a delayed retry for each URL that failed with a retryable outcome
+     * (a network error), or notify immediately if delayed retries are disabled.
+     * A block, a missing price or a skipped fetch is not retried: another try in
+     * 15 minutes would not help.
      *
      * @param  Collection<int, Url>  $failedUrls
      */
-    protected function handleFailures(Collection $failedUrls): void
+    protected function handleFailures(Product $product, Collection $failedUrls): void
     {
         $settings = AppSettings::new();
 
         if ($settings->scrape_retry_max_attempts < 2) {
-            $this->product->user?->notify(new ScrapeFailNotification($this->product));
+            $product->user?->notify(new ScrapeFailNotification($product));
 
             return;
         }
 
         $delay = now()->addMinutes($settings->scrape_retry_delay_minutes);
 
-        $failedUrls->each(
-            fn (Url $url) => RetryUrlPriceJob::dispatch($url, 2)->delay($delay)
-        );
+        $failedUrls
+            ->filter(fn (Url $url) => RetryUrlPriceJob::isRetryable($url))
+            ->each(fn (Url $url) => RetryUrlPriceJob::dispatch($url, 2)->delay($delay));
     }
 }

@@ -3,10 +3,12 @@
 namespace App\Filament\Concerns;
 
 use App\Enums\AiFeature;
+use App\Enums\FetchOutcome;
 use App\Enums\Icons;
 use App\Enums\ScraperService;
 use App\Enums\ScraperStrategyType;
 use App\Services\Helpers\IntegrationHelper;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
@@ -62,9 +64,24 @@ trait HasScraperTrait
                 ->descriptions([
                     ScraperService::Http->value => 'Faster and less resource intensive. Use this for JSON strategy',
                     ScraperService::Api->value => 'Slower but good for scraping JavaScript rendered pages',
+                    ScraperService::FlareSolverr->value => __('Slower; a real browser through FlareSolverr. Use when a store blocks plain requests (e.g. Allegro).'),
                 ])
                 ->reactive()
-                ->default(ScraperService::Http),
+                ->default(ScraperService::Http)
+                ->helperText(fn (Get $get): ?string => self::scraperServiceHint($get)),
+
+            // Kept in the form so a save does not drop them.
+            Hidden::make('settings.suggested_scraper_service'),
+            Hidden::make('settings.last_test_outcome'),
+
+            TextInput::make('settings.min_interval_seconds')
+                ->label(__('Interval between requests (s)'))
+                ->helperText(__('Minimum time between two requests to this store.'))
+                ->numeric()
+                ->integer()
+                ->minValue(1)
+                ->maxValue(600)
+                ->placeholder((string) config('dipalert.default_min_interval_seconds', 10)),
 
             Textarea::make('settings.scraper_service_settings')
                 ->label('Settings')
@@ -101,5 +118,26 @@ trait HasScraperTrait
                 ->hidden(fn (): bool => ! IntegrationHelper::isFeatureEnabled(AiFeature::Healing))
                 ->columnSpanFull(),
         ])->description('Advanced scraper service settings')->columns(2);
+    }
+
+    /**
+     * Suggest FlareSolverr when the last test was blocked or AI repair proposed it.
+     */
+    protected static function scraperServiceHint(Get $get): ?string
+    {
+        if ($get('settings.scraper_service') === ScraperService::FlareSolverr->value) {
+            return null;
+        }
+
+        $blocked = $get('settings.last_test_outcome') === FetchOutcome::Blocked->value;
+        $suggested = $get('settings.suggested_scraper_service') === ScraperService::FlareSolverr->value;
+
+        if (! $blocked && ! $suggested) {
+            return null;
+        }
+
+        return $blocked
+            ? __('The store blocked the last request. Choose FlareSolverr and test again.')
+            : __('AI repair suggests FlareSolverr for this store. Choose it and test again.');
     }
 }

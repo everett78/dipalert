@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Jobs;
 
+use App\Dto\FetchContext;
+use App\Enums\FetchSource;
 use App\Jobs\UpdateAllPricesJob;
 use App\Models\Product;
 use App\Models\User;
@@ -34,12 +36,22 @@ class UpdateAllPricesJobTest extends TestCase
 
             $mock->shouldReceive('updatePrices')
                 ->once()
-                ->with($productIds)
+                ->withArgs(fn (array $ids, FetchContext $ctx): bool => $ids === $productIds
+                    && $ctx->source === FetchSource::Due)
                 ->andReturn($products);
         });
 
-        $job = new UpdateAllPricesJob($productIds);
+        $job = new UpdateAllPricesJob($productIds, FetchContext::due());
         $job->handle();
+    }
+
+    public function test_job_without_a_context_is_a_queued_panel_fetch()
+    {
+        $job = new UpdateAllPricesJob([1]);
+
+        $this->assertSame(FetchSource::Panel, $job->ctx->source);
+        $this->assertFalse($job->ctx->interactive);
+        $this->assertFalse($job->ctx->useCache);
     }
 
     public function test_job_can_be_instantiated_without_product_ids()

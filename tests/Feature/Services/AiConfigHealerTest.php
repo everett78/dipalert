@@ -399,10 +399,11 @@ class AiConfigHealerTest extends TestCase
             'usedBrowser' => true,
         ]);
 
-        // In memory: merged with the existing field, switched to the browser scraper.
+        // In memory: merged with the existing field; the method stays, FlareSolverr is suggested.
         $this->assertSame('#pr', data_get($store->scrape_strategy, 'price.value'));
         $this->assertSame('img|src', data_get($store->scrape_strategy, 'image.value'));
-        $this->assertSame('api', data_get($store->settings, 'scraper_service'));
+        $this->assertSame('http', data_get($store->settings, 'scraper_service'));
+        $this->assertSame('flaresolverr', data_get($store->settings, 'suggested_scraper_service'));
 
         // Not persisted: the DB row is unchanged.
         $fresh = $store->fresh();

@@ -5,6 +5,7 @@ namespace Tests\Feature\Services\Ai;
 use App\Models\Store;
 use App\Services\Ai\HealingContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Jez500\WebScraperForLaravel\Facades\WebScraper;
 use Jez500\WebScraperForLaravel\WebScraperFake;
 use Tests\TestCase;
@@ -70,8 +71,38 @@ class HealingContextTest extends TestCase
         $context->fetch(false);
         $this->assertFalse($context->usedBrowser());
 
+        // The rendered page comes through FlareSolverr (never the SeleniumBase "api").
+        config([
+            'dipalert.flaresolverr_url' => 'http://192.168.0.21:30098',
+            'dipalert.allowed_internal_hosts' => ['192.168.0.21:30098'],
+        ]);
+        Http::fake(['192.168.0.21:30098/*' => Http::response([
+            'status' => 'ok',
+            'solution' => ['url' => 'https://shop.test/x', 'status' => 200, 'response' => '<html>rendered</html>'],
+        ])]);
+
         $context->fetch(true);
         $this->assertTrue($context->usedBrowser());
+        $this->assertSame('<html>rendered</html>', $context->getHtml());
+    }
+
+    public function test_failed_rendered_fetch_keeps_the_static_html(): void
+    {
+        $store = Store::factory()->create(['settings' => []]);
+        WebScraper::shouldReceive('make')->andReturn((new WebScraperFake)->setBody('<html>static</html>'));
+
+        $context = new HealingContext('https://shop.test/x', $store, null);
+        $context->fetch(false);
+
+        // No FlareSolverr configured: the rendered fetch fails and must not wipe the page.
+        try {
+            $context->fetch(true);
+            $this->fail('Expected the rendered fetch to fail');
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertSame('<html>static</html>', $context->getHtml());
+        $this->assertFalse($context->usedBrowser());
     }
 
     public function test_fetch_surfaces_structured_data_even_when_deep_in_a_large_page(): void

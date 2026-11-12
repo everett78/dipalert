@@ -14,6 +14,8 @@ enum ScraperService: string implements HasColor, HasDescription, HasLabel
 
     case Api = BaseScraperService::Api->value;
 
+    case FlareSolverr = 'flaresolverr';
+
     public static function values(): array
     {
         return array_column(self::cases(), 'value');
@@ -24,6 +26,7 @@ enum ScraperService: string implements HasColor, HasDescription, HasLabel
         return match ($this) {
             self::Http => 'Curl based HTTP request',
             self::Api => 'Browser based request',
+            self::FlareSolverr => __('FlareSolverr (browser, for pages protected against bots, e.g. Allegro)'),
         };
     }
 
@@ -32,6 +35,7 @@ enum ScraperService: string implements HasColor, HasDescription, HasLabel
         return match ($this) {
             self::Http => 'Faster and and less resource intensive',
             self::Api => 'Slower but good for scraping JavaScript rendered pages',
+            self::FlareSolverr => __('Slower; use when a store blocks plain requests'),
         };
     }
 
@@ -40,6 +44,7 @@ enum ScraperService: string implements HasColor, HasDescription, HasLabel
         return match ($this) {
             self::Http => Color::Blue,
             self::Api => Color::Pink,
+            self::FlareSolverr => Color::Amber,
         };
     }
 }

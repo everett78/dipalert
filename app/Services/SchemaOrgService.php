@@ -15,18 +15,9 @@ class SchemaOrgService
      *
      * @type = Product. From there, extract out data for the field we want.
      */
-    public static function parseSchemaOrg(Collection $collection, string $field): ?string
+    public static function parseSchemaOrg(Collection $collection, string $field, ?string $pageUrl = null): ?string
     {
-        // Match the Product node case-insensitively, and tolerate an array @type
-        // (e.g. ["Product", "Thing"]). Some sites use a lowercase "product" type.
-        $schema = $collection->first(function ($item): bool {
-            $types = array_map(
-                static fn ($type): string => strtolower((string) $type),
-                (array) data_get($item, '@type'),
-            );
-
-            return in_array('product', $types, true);
-        });
+        $schema = self::findProduct($collection, $pageUrl);
 
         if (! $schema) {
             return null;
@@ -59,6 +50,111 @@ class SchemaOrgService
         }
 
         return $value === null ? null : (string) $value;
+    }
+
+    /**
+     * Pick the Product node for the page.
+     *
+     * Blocks may be a list (Morele: [ProductGroup, Product, Product, ...]) or carry
+     * an @graph, and a ProductGroup may list its variants in hasVariant. All of
+     * these are flattened first. Then, in order: the Product whose url is the page
+     * address, a Product with offers, the first Product.
+     *
+     * @param  Collection<int, mixed>  $collection
+     * @return array<string, mixed>|null
+     */
+    public static function findProduct(Collection $collection, ?string $pageUrl = null): ?array
+    {
+        $products = array_values(array_filter(
+            self::flattenNodes($collection->all()),
+            static fn (array $node): bool => self::isProduct($node),
+        ));
+
+        if ($products === []) {
+            return null;
+        }
+
+        if (filled($pageUrl)) {
+            $page = self::normaliseUrl((string) $pageUrl);
+
+            foreach ($products as $product) {
+                $url = data_get($product, 'url');
+
+                if (is_string($url) && self::normaliseUrl($url) === $page) {
+                    return $product;
+                }
+            }
+        }
+
+        foreach ($products as $product) {
+            if (filled(data_get($product, 'offers'))) {
+                return $product;
+            }
+        }
+
+        return $products[0];
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $items
+     * @return list<array<string, mixed>>
+     */
+    protected static function flattenNodes(array $items, int $depth = 0): array
+    {
+        $nodes = [];
+
+        if ($depth > 5) {
+            return $nodes;
+        }
+
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if (array_is_list($item)) {
+                array_push($nodes, ...self::flattenNodes($item, $depth + 1));
+
+                continue;
+            }
+
+            $nodes[] = $item;
+
+            if (is_array($graph = data_get($item, '@graph'))) {
+                array_push($nodes, ...self::flattenNodes(array_is_list($graph) ? $graph : [$graph], $depth + 1));
+            }
+
+            if (is_array($variants = data_get($item, 'hasVariant'))) {
+                array_push($nodes, ...self::flattenNodes(array_is_list($variants) ? $variants : [$variants], $depth + 1));
+            }
+        }
+
+        return $nodes;
+    }
+
+    /**
+     * Match the Product type case-insensitively, and tolerate an array @type
+     * (e.g. ["Product", "Thing"]). Some sites use a lowercase "product" type.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    protected static function isProduct(array $node): bool
+    {
+        $types = array_map(
+            static fn ($type): string => strtolower((string) $type),
+            (array) data_get($node, '@type'),
+        );
+
+        return in_array('product', $types, true);
+    }
+
+    protected static function normaliseUrl(string $url): string
+    {
+        $url = strtolower(trim($url));
+        $url = (string) preg_replace('/#.*$/', '', $url);
+        $url = (string) preg_replace('#^https?://(www\.)?#', '', $url);
+
+        return rtrim($url, '/');
     }
 
     /**

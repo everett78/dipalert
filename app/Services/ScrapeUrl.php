@@ -3,12 +3,20 @@
 namespace App\Services;
 
 use App\Dto\AvailabilityStrategyDto;
+use App\Dto\FetchContext;
 use App\Dto\StandardStrategyDto;
+use App\Enums\FetchOutcome;
 use App\Enums\ScraperService;
 use App\Enums\ScraperStrategyType;
 use App\Enums\StockStatus;
+use App\Exceptions\BlockedUrlException;
+use App\Exceptions\StoreBusyException;
+use App\Exceptions\StorePausedException;
 use App\Models\Store;
 use App\Services\Helpers\SettingsHelper;
+use App\Services\Scrapers\FetchOutcomeClassifier;
+use App\Services\Scrapers\PacedScraper;
+use App\Services\Scrapers\ScraperFactory;
 use App\Settings\AppSettings;
 use Exception;
 use Filament\Notifications\Notification;
@@ -16,8 +24,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Support\Uri;
 use Jez500\WebScraperForLaravel\Exceptions\DomSelectorException;
-use Jez500\WebScraperForLaravel\Facades\WebScraper;
-use Jez500\WebScraperForLaravel\WebScraperApi;
 use Jez500\WebScraperForLaravel\WebScraperInterface;
 use Psr\Log\LoggerInterface;
 
@@ -73,11 +79,32 @@ class ScrapeUrl
      */
     protected const string NOT_FOUND_BODY_PATTERN = '/class=["\'][^"\']*\btemplate-404\b|data-page-type=["\']404["\']|"pageType"\s*:\s*"404"|rel=["\']canonical["\'][^>]*href=["\'][^"\']*\/404\/?["\']|href=["\'][^"\']*\/404\/?["\'][^>]*rel=["\']canonical["\']/i';
 
-    protected WebScraperInterface $webScraper;
+    /**
+     * Result keys added by DipAlert.
+     */
+    public const string OUTCOME_KEY = 'outcome';
+
+    public const string STATUS_KEY = 'status';
+
+    public const string METHOD_KEY = 'method';
+
+    public const string FROM_CACHE_KEY = 'from_cache';
+
+    public const string FINAL_URL_KEY = 'final_url';
+
+    protected PacedScraper $webScraper;
+
+    protected FetchContext $ctx;
 
     protected LoggerInterface $logger;
 
     protected int $scraperRequestTimeout = 30;
+
+    /**
+     * Whether a caller set the request timeout (e.g. a time budget). Otherwise
+     * FlareSolverr gets its own, longer client timeout.
+     */
+    protected bool $requestTimeoutSet = false;
 
     protected int $scraperConnectTimeout = 30;
 
@@ -102,11 +129,54 @@ class ScrapeUrl
         // @phpstan-ignore-next-line - withContext is valid.
         $this->logger = Log::channel('db')->withContext(['url' => $url]);
         $this->maxAttempts = SettingsHelper::getSetting('max_attempts_to_scrape', 3);
+        $this->ctx = FetchContext::panel();
     }
 
     public static function new(string $url): self
     {
         return resolve(static::class, ['url' => $url]);
+    }
+
+    public function withContext(?FetchContext $ctx): self
+    {
+        $this->ctx = $ctx ?? FetchContext::panel();
+
+        return $this;
+    }
+
+    public function getContext(): FetchContext
+    {
+        return $this->ctx;
+    }
+
+    /**
+     * The outcome of a scrape result. A result without the key (no store for the
+     * address, or a result built elsewhere) is classified from what it holds.
+     *
+     * @param  array<string, mixed>|false|null  $result
+     */
+    public static function outcomeOf(array|false|null $result): FetchOutcome
+    {
+        $outcome = data_get($result, self::OUTCOME_KEY);
+
+        if ($outcome instanceof FetchOutcome) {
+            return $outcome;
+        }
+
+        if (is_string($outcome) && ($enum = FetchOutcome::tryFrom($outcome))) {
+            return $enum;
+        }
+
+        $result = is_array($result) ? $result : [];
+        $availabilityStrategy = data_get($result, 'store.scrape_strategy.availability');
+
+        return FetchOutcomeClassifier::classify(
+            is_numeric(data_get($result, self::STATUS_KEY)) ? (int) data_get($result, self::STATUS_KEY) : null,
+            (string) data_get($result, 'body', ''),
+            (array) data_get($result, 'errors', []),
+            filled(data_get($result, 'price')),
+            $result !== [] && self::resolveStockStatus($result, $availabilityStrategy)->isUnavailable(),
+        );
     }
 
     public function setMaxAttempts(int $maxAttempts): self
@@ -130,21 +200,17 @@ class ScrapeUrl
         return $this;
     }
 
-    public function setScraper(string $scraper): self
+    public function setScraper(string $scraper, ?Store $store = null): self
     {
         $this->scraperService = $scraper;
-        $scraper = WebScraper::make($this->scraperService)
+
+        $requestTimeout = $scraper === ScraperService::FlareSolverr->value && ! $this->requestTimeoutSet
+            ? (int) config('dipalert.flaresolverr_client_timeout_s', 70)
+            : $this->getRequestTimeout();
+
+        $this->webScraper = ScraperFactory::make($scraper, $this->url, $store, $this->ctx)
             ->setConnectTimeout($this->getConnectTimeout())
-            ->setRequestTimeout($this->getRequestTimeout());
-
-        if ($this->scraperService === ScraperService::Api->value) {
-            /** @var WebScraperApi $scraper */
-            $scraper->setScraperApiBaseUrl(
-                config('price_buddy.scraper_api_url', 'http://scraper:3000')
-            );
-        }
-
-        $this->webScraper = $scraper;
+            ->setRequestTimeout($requestTimeout);
 
         return $this;
     }
@@ -153,8 +219,9 @@ class ScrapeUrl
     {
         $attempt = 0;
         $output = [];
+        $maxAttempts = $this->ctx->interactive ? 1 : $this->maxAttempts;
 
-        while ($attempt < $this->maxAttempts) {
+        while ($attempt < $maxAttempts) {
             $attempt++;
 
             // Don't use cache if previous attempt failed.
@@ -165,17 +232,33 @@ class ScrapeUrl
             $output = $this->scrapeUrl($options);
 
             if ($output === false) {
-                $attempt = $this->maxAttempts;
+                $attempt = $maxAttempts;
                 $output = [];
             }
 
             if (! empty($output['title'])) {
                 break;
             }
+
+            // Another request right away would not help after a block, a refused
+            // address or a skipped fetch (and would hit a blocking store again).
+            if ($this->isFinalFailure($output)) {
+                break;
+            }
         }
 
         $availabilityStrategy = data_get($output, 'store.scrape_strategy.availability');
         $isUnavailable = self::resolveStockStatus($output, $availabilityStrategy)->isUnavailable();
+
+        if ($output !== []) {
+            $output[self::OUTCOME_KEY] = FetchOutcomeClassifier::classify(
+                $output[self::STATUS_KEY] ?? null,
+                (string) ($output['body'] ?? ''),
+                (array) ($output['errors'] ?? []),
+                filled($output['price'] ?? null),
+                $isUnavailable,
+            );
+        }
 
         foreach (['price', 'title'] as $required) {
             // Skip price requirement when product is unavailable.
@@ -187,6 +270,8 @@ class ScrapeUrl
                 $this->errorLog('Error scraping URL '.$attempt.' times', [
                     'attempts' => $attempt,
                     'error' => __('Missing :field when scraping', ['field' => $required]),
+                    'outcome' => data_get($output, self::OUTCOME_KEY)?->value,
+                    'status' => $output[self::STATUS_KEY] ?? null,
                     'scrape_errors' => $output['errors'] ?? [],
                     'scraped_html' => $output['body'] ?? '',
                 ]);
@@ -199,10 +284,28 @@ class ScrapeUrl
         return $output;
     }
 
+    /**
+     * Whether the attempt ended in a way another immediate attempt cannot fix.
+     *
+     * @param  array<string, mixed>  $output
+     */
+    protected function isFinalFailure(array $output): bool
+    {
+        $errors = (array) ($output['errors'] ?? []);
+
+        foreach ([FetchOutcomeClassifier::ERROR_URL_REFUSED, FetchOutcomeClassifier::ERROR_SKIPPED, FetchOutcomeClassifier::ERROR_BUSY] as $kind) {
+            if (array_key_exists($kind, $errors)) {
+                return true;
+            }
+        }
+
+        return FetchOutcomeClassifier::isBlocked($output[self::STATUS_KEY] ?? null, (string) ($output['body'] ?? ''));
+    }
+
     protected function scrapeUrl(array $options = []): array|false
     {
         $store = data_get($options, 'store') ?? $this->getStore();
-        $useCache = data_get($options, 'use_cache', true);
+        $useCache = (bool) data_get($options, 'use_cache', $this->ctx->useCache);
 
         if (! $store) {
             $this->errorLog('No store found for URL');
@@ -213,10 +316,15 @@ class ScrapeUrl
 
         $output = [
             'store' => $store,
+            self::METHOD_KEY => $store->scraper_service,
+            self::STATUS_KEY => null,
+            self::FROM_CACHE_KEY => false,
+            'body' => '',
+            'errors' => [],
         ];
 
         try {
-            $this->setScraper($store->scraper_service);
+            $this->setScraper($store->scraper_service, $store);
 
             $scraper = $this->webScraper->from($this->url)
                 ->setCacheMinsTtl(AppSettings::new()->scrape_cache_ttl)
@@ -228,17 +336,47 @@ class ScrapeUrl
             }
 
             $page = $scraper->get();
+        } catch (BlockedUrlException $e) {
+            return $this->failedOutput($output, FetchOutcomeClassifier::ERROR_URL_REFUSED, $e->getMessage(), $store);
+        } catch (StorePausedException $e) {
+            return $this->failedOutput($output, FetchOutcomeClassifier::ERROR_SKIPPED, $e->getMessage(), $store);
+        } catch (StoreBusyException $e) {
+            return $this->failedOutput($output, FetchOutcomeClassifier::ERROR_BUSY, $e->getMessage(), $store);
+        } catch (Exception $e) {
+            $this->errorLog('Error scraping URL', [
+                'error' => $e->getMessage(),
+            ]);
 
-            if ($errors = $scraper->getErrors()) {
-                $this->errorLog('Error scraping URL', [
-                    'store_id' => $store->getKey(),
-                    'errors' => $errors,
-                ]);
-                $this->errorNotification('Error scraping URL check logs');
+            return $this->failedOutput($output, FetchOutcomeClassifier::ERROR_NETWORK, $e->getMessage(), $store);
+        }
 
-                return $output;
+        $output[self::STATUS_KEY] = $scraper->getStatusCode();
+        $output[self::FROM_CACHE_KEY] = $scraper->isFromCache();
+        $output[self::FINAL_URL_KEY] = $scraper->getFinalUrl();
+        $output['body'] = $page->getBody();
+
+        if ($errors = $scraper->getErrors()) {
+            $output['errors'] = self::keyErrors($errors);
+
+            $this->errorLog('Error scraping URL', [
+                'store_id' => $store->getKey(),
+                'errors' => $output['errors'],
+            ]);
+            $this->errorNotification('Error scraping URL check logs');
+
+            return $output;
+        }
+
+        // A block page is not parsed: its title or a price on it means nothing.
+        if (FetchOutcomeClassifier::isBlocked($output[self::STATUS_KEY], $output['body'])) {
+            foreach ($this->keys as $key) {
+                $output[$key] = null;
             }
 
+            return $output;
+        }
+
+        try {
             $strategy = $store->scrape_strategy;
 
             foreach ($this->keys as $key) {
@@ -248,7 +386,6 @@ class ScrapeUrl
                     : null;
             }
 
-            $output['body'] = $page->getBody();
             $output['errors'] = $scraper->getErrors();
             $output = $this->applyNotFoundPageGuards($output);
         } catch (Exception $e) {
@@ -258,6 +395,39 @@ class ScrapeUrl
         }
 
         return $output;
+    }
+
+    /**
+     * @param  array<string, mixed>  $output
+     * @return array<string, mixed>
+     */
+    protected function failedOutput(array $output, string $kind, string $message, Store $store): array
+    {
+        $output['errors'] = [$kind => ['message' => $message, 'code' => 0]];
+
+        $this->errorLog('Error scraping URL', [
+            'store_id' => $store->getKey(),
+            'errors' => $output['errors'],
+        ]);
+        $this->errorNotification($message);
+
+        return $output;
+    }
+
+    /**
+     * Errors from DipAlert scrapers are keyed by kind. A plain list (other
+     * scraper classes) counts as a network error.
+     *
+     * @param  array<int|string, mixed>  $errors
+     * @return array<int|string, mixed>
+     */
+    public static function keyErrors(array $errors): array
+    {
+        if ($errors === [] || ! array_is_list($errors)) {
+            return $errors;
+        }
+
+        return [FetchOutcomeClassifier::ERROR_NETWORK => $errors[0]] + $errors;
     }
 
     /**
@@ -345,7 +515,7 @@ class ScrapeUrl
     protected function scrapeOption(WebScraperInterface $scraper, StandardStrategyDto $options, string $field): ?string
     {
         try {
-            return StrategyExtractor::extract($scraper, $options, $field);
+            return StrategyExtractor::extract($scraper, $options, $field, $this->url);
         } catch (DomSelectorException $e) {
             $this->errorLog('Error scraping URL', [
                 'url' => $this->url,
@@ -484,6 +654,7 @@ class ScrapeUrl
     public function setRequestTimeout(int $scraperRequestTimeout): self
     {
         $this->scraperRequestTimeout = $scraperRequestTimeout;
+        $this->requestTimeoutSet = true;
 
         return $this;
     }

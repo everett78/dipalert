@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProductResource\Actions;
 
+use App\Dto\FetchContext;
 use App\Jobs\UpdateAllPricesJob;
 use Filament\Actions\Concerns\CanCustomizeProcess;
 use Filament\Tables\Actions\BulkAction;
@@ -33,7 +34,8 @@ class FetchBulkAction extends BulkAction
         $this->action(function (): void {
             $this->process(static function (Collection $records) {
                 UpdateAllPricesJob::dispatch(
-                    $records->pluck('id')->toArray()
+                    $records->pluck('id')->toArray(),
+                    FetchContext::panelQueued(),
                 );
             });
 

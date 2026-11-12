@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Dto\FetchContext;
 use App\Models\Product;
 use App\Models\Url;
 use App\Models\User;
@@ -47,6 +48,7 @@ class AddUrlToProductJob implements ShouldQueue
                 productId: $product->getKey(),
                 userId: $user->getKey(),
                 priceFactor: $this->priceFactor,
+                ctx: FetchContext::panelQueued(),
             );
         } catch (Exception $e) {
             logger()->warning('Failed to add URL to product: '.$e->getMessage(), [
