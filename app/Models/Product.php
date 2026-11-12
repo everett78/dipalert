@@ -53,7 +53,6 @@ use Illuminate\Support\Str;
  * @property array $price_aggregates
  * @property array $urls_array
  * @property array $ignored_urls
- * @property array $ignored_search_urls
  * @property float $current_price
  * @property bool $is_last_scrape_successful
  * @property bool $is_notified_price
@@ -393,16 +392,6 @@ class Product extends Model
     {
         return Attribute::make(
             get: fn () => $this->urls->pluck('url')->toArray()
-        );
-    }
-
-    /**
-     * Get urls array.
-     */
-    public function ignoredSearchUrls(): Attribute
-    {
-        return Attribute::make(
-            get: fn ($value) => collect($this->ignored_urls)->merge($this->urls_array)->unique()->values()->toArray()
         );
     }
 

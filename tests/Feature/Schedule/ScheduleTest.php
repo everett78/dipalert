@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\Schedule;
 
+use App\Console\Commands\BackupDatabase;
 use App\Console\Commands\FetchAll;
 use App\Console\Commands\FetchDue;
-use App\Models\UrlResearch;
 use App\Services\Helpers\ScheduleHelper;
 use App\Services\Helpers\SettingsHelper;
 use Illuminate\Console\Scheduling\Schedule;
@@ -280,48 +280,35 @@ class ScheduleTest extends TestCase
     }
 
     /**
-     * Test model:prune command for UrlResearch is scheduled daily.
+     * The nightly database backup runs at 03:00 (DipAlert).
      */
-    public function test_url_research_prune_command_is_scheduled_daily(): void
+    public function test_backup_runs_nightly_at_3am(): void
     {
-        $schedule = $this->getSchedule();
-        $events = collect($schedule->events());
+        $backupEvent = collect($this->getSchedule()->events())->first(
+            fn ($event) => str_contains($event->command ?? '', BackupDatabase::COMMAND)
+        );
 
-        $pruneUrlResearchEvent = $events->first(function ($event) {
-            $command = $event->command ?? '';
+        $this->assertNotNull($backupEvent, 'Backup command should be scheduled');
+        $this->assertStringContainsString('nightly', $backupEvent->command ?? '');
 
-            return str_contains($command, 'model:prune') &&
-                   str_contains($command, UrlResearch::class);
-        });
+        Carbon::setTestNow('2025-12-28 03:00:00');
+        $this->assertTrue($backupEvent->isDue($this->app), 'Should run at 03:00');
 
-        $this->assertNotNull($pruneUrlResearchEvent, 'UrlResearch prune command should be scheduled');
-        $this->assertStringContainsString('model:prune', $pruneUrlResearchEvent->command ?? '');
+        Carbon::setTestNow('2025-12-28 00:00:00');
+        $this->assertFalse($backupEvent->isDue($this->app), 'Should not run at midnight');
     }
 
     /**
-     * Test model:prune for UrlResearch runs daily at midnight.
+     * Finished job batches are pruned daily (DipAlert).
      */
-    public function test_url_research_prune_runs_daily_at_midnight(): void
+    public function test_job_batches_are_pruned_daily(): void
     {
-        $schedule = $this->getSchedule();
-        $events = collect($schedule->events());
+        $pruneBatchesEvent = collect($this->getSchedule()->events())->first(
+            fn ($event) => str_contains($event->command ?? '', 'queue:prune-batches')
+        );
 
-        $pruneUrlResearchEvent = $events->first(function ($event) {
-            $command = $event->command ?? '';
-
-            return str_contains($command, 'model:prune') &&
-                   str_contains($command, UrlResearch::class);
-        });
-
-        $this->assertNotNull($pruneUrlResearchEvent);
-
-        // Test at midnight
-        Carbon::setTestNow('2025-12-28 00:00:00');
-        $this->assertTrue($pruneUrlResearchEvent->isDue($this->app), 'Should run at midnight');
-
-        // Test at other times
-        Carbon::setTestNow('2025-12-28 15:00:00');
-        $this->assertFalse($pruneUrlResearchEvent->isDue($this->app), 'Should not run at 3 PM');
+        $this->assertNotNull($pruneBatchesEvent, 'queue:prune-batches should be scheduled');
+        $this->assertStringContainsString('720', $pruneBatchesEvent->command ?? '');
     }
 
     /**
@@ -384,11 +371,8 @@ class ScheduleTest extends TestCase
                    str_contains($command, LogMessage::class);
         })->count();
 
-        $urlResearchPruneCount = $events->filter(function ($event) {
-            $command = $event->command ?? '';
-
-            return str_contains($command, 'model:prune') &&
-                   str_contains($command, UrlResearch::class);
+        $backupCount = $events->filter(function ($event) {
+            return str_contains($event->command ?? '', BackupDatabase::COMMAND);
         })->count();
 
         $sanctumPruneCount = $events->filter(function ($event) {
@@ -397,7 +381,7 @@ class ScheduleTest extends TestCase
 
         $this->assertEquals(1, $fetchAllCount, 'Should have exactly 1 FetchAll scheduled task');
         $this->assertEquals(1, $logMessagePruneCount, 'Should have exactly 1 LogMessage prune task');
-        $this->assertEquals(1, $urlResearchPruneCount, 'Should have exactly 1 UrlResearch prune task');
+        $this->assertEquals(1, $backupCount, 'Should have exactly 1 backup task');
         $this->assertEquals(1, $sanctumPruneCount, 'Should have exactly 1 Sanctum prune task');
     }
 }

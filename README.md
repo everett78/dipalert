@@ -1,158 +1,84 @@
-# <img src="public/images/logo-full.svg" width="250" height="auto" alt="PriceBuddy">
+# DipAlert
 
-**Track prices from the stores you actually use. Run it yourself. Keep the data. Know when a deal is real.**
+Osobisty tracker cen dla jednej osoby, uruchamiany na domowym serwerze
+TrueNAS. DipAlert jest forkiem projektu
+[PriceBuddy](https://github.com/jez500/pricebuddy) autorstwa jez500
+(wersja bazowa v1.0.57, licencja GPL-3.0). Zmiany względem oryginału
+wymienia plik [NOTICE](NOTICE).
 
-PriceBuddy is an open source, self-hostable price tracker for people who would rather watch products than browser tabs. Paste in a product URL, let PriceBuddy check it on a schedule, and get notified when the price or availability moves in your favour.
+## Czym różni się od PriceBuddy
 
-It works across different stores, keeps price history, compares listings, handles stock status, and can use your own AI provider when a page is awkward to scrape. The web app is the main control room; the browser extension brings it to the product page you are already on, and the API and CLI make it scriptable.
+*   Ustawienia domyślne dla Polski: język polski, strefa
+    `Europe/Warsaw`, waluta PLN, linki partnerskie wyłączone.
+*   Obraz Dockera publikowany w GitHub Container Registry
+    (`ghcr.io/everett78/dipalert`).
+*   Kopia bazy co noc i przed każdą migracją (polecenie `dipalert:backup`).
+*   Usunięte: wyszukiwarka produktów SearXNG oraz powiadomienia inne niż
+    e-mail (ntfy, Gotify, Discord, Apprise, Telegram, Pushover). Historia
+    powiadomień w panelu zostaje.
+*   Kolejne etapy (FlareSolverr, tempo odczytów, dzienny e-mail, kolekcje,
+    listy ofert z Ceneo) opisuje dokument projektowy autora.
 
-[Read the docs](https://pricebuddy.jez.me?ref=pb-gh) · [Install with Docker](#installation) · [Explore features](#features) · [CLI](https://github.com/jez500/pricebuddy-cli) · [Browser extension](https://chromewebstore.google.com/detail/pricebuddy-companion/khmeibbaaegidkjlkbckgnhfgpgfgnoe)
+## Wdrożenie na TrueNAS
 
-![Dashboard](docs/docs/.vuepress/public/screenshots/dashboard.png)
+1.  Utwórz zbiory danych `dipalert/storage`, `dipalert/db`,
+    `dipalert/backups`.
+2.  Dodaj aplikację niestandardową z pliku
+    [`deploy/truenas/compose.yaml`](deploy/truenas/compose.yaml). Uzupełnij:
+    *   `APP_KEY` — wygeneruj raz, np. `echo "base64:$(openssl rand -base64 32)"`,
+        i **nie zmieniaj** (szyfruje klucze AI zapisane w ustawieniach);
+    *   `APP_USER_EMAIL` i `APP_USER_PASSWORD` — pierwszy administrator,
+        tworzony przy pierwszym starcie;
+    *   hasła bazy (`DB_PASSWORD` = `MARIADB_PASSWORD`,
+        `MARIADB_ROOT_PASSWORD`);
+    *   `FLARESOLVERR_URL` i `DIPALERT_ALLOWED_INTERNAL_HOSTS`;
+    *   ścieżki zbiorów danych w sekcji `volumes`;
+    *   wersję obrazu (`ghcr.io/everett78/dipalert:vX.Y.Z`, nigdy `latest`).
+3.  Skieruj trasę tunelu Cloudflare na port aplikacji (domyślnie 8080)
+    i ustaw przed nią Cloudflare Access.
+4.  Po pierwszym logowaniu ustaw pocztę w panelu: **Ustawienia →
+    Powiadomienia → E-mail** (serwer SMTP, login, hasło) i włącz e-mail
+    w swoim profilu użytkownika.
+5.  Ustaw w TrueNAS zadanie kopiujące zbiór `dipalert/backups` poza serwer
+    (Cloud Sync albo replikacja), raz na dobę po 03:00.
 
-## Why PriceBuddy?
+## Kopie zapasowe
 
-Most price trackers work only where someone has already built an integration. PriceBuddy is built for the messy web: normal product pages, changing markup, multiple listings for the same item, stores that go in and out of stock, and the usual "sale" prices that are not really sales.
+*   `php artisan dipalert:backup` zapisuje skompresowany zrzut bazy do
+    `/backups` jako `dipalert-RRRRMMDD-GGMM-<powód>.sql.gz` i trzyma 14
+    ostatnich plików.
+*   Harmonogram robi kopię co noc o 03:00, a skrypt startowy przed każdą
+    migracją (gdy nowa wersja zmienia bazę). Błąd kopii zatrzymuje start,
+    żeby migracja nie przeszła bez kopii.
 
-Use it for everyday shopping, household wishlists, hobby gear, computer parts, baby stuff, subscriptions, marketplace listings, or anything else where timing matters.
+### Odtworzenie zrzutu
 
-## Features
-
-### Track almost any store
-
-Paste a product URL and PriceBuddy will try to read the product title, image, price and availability. Many stores work straight away. For trickier sites, you can tune the scrape strategy without changing code.
-
-### Compare listings across retailers
-
-Track the same product across multiple stores, or multiple listings on the same marketplace, and see the current best option in one place.
-
-### Keep the price history
-
-PriceBuddy records prices over time so you can see highs, lows and trends. That makes it easier to spot fake discounts and decide whether today's price is actually good.
-
-### Get notified where you already are
-
-Set a target price or percentage drop and let PriceBuddy watch for it. Notifications can go through the app, email, Pushover, Gotify, Apprise, Telegram, Discord or ntfy.
-
-### Track availability, not just price
-
-A cheap listing is useless if it is out of stock. PriceBuddy tracks in stock, pre-order, back order, special order, out of stock and discontinued states.
-
-### Compare unit prices
-
-PriceBuddy can calculate price per unit, so a 10-pack and a 3-pack can be compared fairly.
-
-### Use AI only when it helps
-
-Bring your own OpenAI, Anthropic, Gemini or local Ollama provider. PriceBuddy can use AI to recover missing data from a page or help repair scraping rules. It is optional and off by default.
-
-### Search for products to track
-
-Connect a [SearXNG](https://github.com/searxng/searxng) instance and search for products from inside PriceBuddy.
-
-### Track from the page you are on
-
-The [PriceBuddy Companion](https://chromewebstore.google.com/detail/pricebuddy-companion/khmeibbaaegidkjlkbckgnhfgpgfgnoe) browser extension adds a panel to any product page so you can start tracking it, see how the price compares to the other stores you track, and fix a store's scrape strategy in place.
-
-### Organise a shared watchlist
-
-Use tags, filters and multi-user accounts so each person can track their own products, targets and notification preferences.
-
-### Host it yourself
-
-Run PriceBuddy on your own server with Docker. Your watchlist, price history and notification settings stay under your control.
-
-## PriceBuddy tools
-
-PriceBuddy is designed to be useful from more than the web UI. The tool ecosystem is small for now, with more planned.
-
-| Tool | What it is for |
-| --- | --- |
-| [PriceBuddy CLI](https://github.com/jez500/pricebuddy-cli) | Command-line access for humans and agents. Sync a local mirror, search products, inspect price history, run deal/drop reports, call the REST API, and expose PriceBuddy through MCP. |
-| [PriceBuddy Companion](https://chromewebstore.google.com/detail/pricebuddy-companion/khmeibbaaegidkjlkbckgnhfgpgfgnoe) | Chrome/Edge extension. Track a product from the page you are on, see its price insights against other stores, and tune a store's scrape strategy without leaving the site. [Source](https://github.com/jez500/pricebuddy-browser-extensions) · [Docs](https://pricebuddy.jez.me/browser-extension.html) |
-
-## Screenshots
-
-| Product overview | Price history |
-| --- | --- |
-| ![Product](docs/docs/.vuepress/public/screenshots/product.png) | ![History](docs/docs/.vuepress/public/screenshots/history.png) |
-
-## Installation
-
-All you need is [Docker](https://www.docker.com/).
-
-Download [docker-compose.yml](docker-compose.yml), adjust it for your environment, then start PriceBuddy:
-
-```shell
-touch .env
-docker compose up -d
+```bash
+gunzip -c /backups/dipalert-RRRRMMDD-GGMM-pre-migration.sql.gz | \
+  docker exec -i <kontener-bazy> mariadb -u root -p"$MARIADB_ROOT_PASSWORD" dipalert
 ```
 
-With the defaults, the app runs at `http://localhost:8080`.
+## Cofnięcie wersji
 
-Default login:
+1.  Zatrzymaj aplikację.
+2.  Jeśli nowsza wersja zmieniła bazę, odtwórz zrzut `…-pre-migration…`
+    zrobiony przy jej starcie (migracje działają tylko w przód).
+3.  W compose wpisz poprzednią wersję obrazu i uruchom aplikację.
 
-```text
-admin@example.com / admin
+## Rozwój
+
+Testy wymagają PHP 8.4 i MariaDB. Bez lokalnego PHP można je uruchomić
+w kontenerach (obraz testowy PriceBuddy):
+
+```bash
+docker network create dipalert-test
+docker run -d --rm --name tests_db --network dipalert-test \
+  -e MARIADB_ROOT_PASSWORD=password -e MARIADB_DATABASE=tests_db mariadb:11
+docker run --rm -it --network dipalert-test -v "$PWD":/app -w /app \
+  jez500/pricebuddy-tests-8.4:latest bash -c \
+  "composer install --no-scripts && cp .env.ci .env && sed -i 's/DB_HOST=mysql/DB_HOST=tests_db/' .env && php artisan key:generate && php -d memory_limit=512M artisan test -p"
 ```
 
-Change that password immediately.
+## Licencja
 
-See the [installation guide](https://pricebuddy.jez.me/installation.html) for the full setup and configuration options.
-
-> Docker is the recommended install path. If you want to run it another way, `docker/php.dockerfile` and `docker-compose.yml` are the best references for the required services and PHP extensions.
-
-## Background tasks
-
-The Docker image includes the scheduler needed for background work: checking prices, updating history and sending notifications. You do not need to run a separate cron container.
-
-## Settings and configuration
-
-Most settings live in the app. Advanced options can be set in `.env`.
-
-See the [settings docs](https://pricebuddy.jez.me/settings.html) for details.
-
-## Affiliate codes
-
-PriceBuddy adds affiliate codes for a [small number of stores](config/affiliates.php) to help support development.
-
-If you do not want that, set this in `.env` or `docker-compose.yml`:
-
-```env
-AFFILIATE_ENABLED=false
-```
-
-If you disable affiliate support and still want to help, see [supporting the project](https://pricebuddy.jez.me/support-project.html).
-
-## Inspiration
-
-PriceBuddy was inspired by [Discount Bandit](https://github.com/Cybrarist/Discount-Bandit). PriceBuddy's main difference is flexibility: it aims to track products from arbitrary stores without requiring a code change for each retailer.
-
-## Contributing and development
-
-Contributions are welcome. Open an issue or pull request if you have a bug fix, store compatibility improvement, documentation change or feature idea.
-
-PriceBuddy is built with [Laravel](https://laravel.com) and [Filament](https://filamentphp.com). Local development uses [Lando](https://lando.dev):
-
-```shell
-cp .env.example-dev .env
-lando start
-lando artisan key:generate
-lando restart
-```
-
-Use `.env.example-dev`, not `.env.example`. The plain example has no database settings, so Laravel connects to `127.0.0.1` instead of the Lando `database` service. Lando loads `.env` only when it starts, so restart after you change it.
-
-Coding standards, static analysis and tests are handled with Pint, PHPStan and Pest/PHPUnit. See the [development docs](https://pricebuddy.jez.me/advanced.html) for the full setup.
-
-## Supporting development
-
-See [supporting the project](https://pricebuddy.jez.me/support-project.html) for ways to help keep PriceBuddy moving.
-
-## License
-
-PriceBuddy is licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE).
-
-## Contributors
-
-- [Jeremy Graham](https://jez.me)
+GPL-3.0, jak oryginał. Zob. [LICENSE](LICENSE) i [NOTICE](NOTICE).

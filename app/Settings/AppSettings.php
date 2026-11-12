@@ -8,7 +8,7 @@ class AppSettings extends Settings
 {
     public string $scrape_schedule = '0 6 * * *';
 
-    public int $scrape_cache_ttl = 720;
+    public int $scrape_cache_ttl = 60;
 
     public int $sleep_seconds_between_scrape = 10;
 

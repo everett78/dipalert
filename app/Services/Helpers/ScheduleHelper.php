@@ -2,9 +2,9 @@
 
 namespace App\Services\Helpers;
 
+use App\Console\Commands\BackupDatabase;
 use App\Console\Commands\FetchAll;
 use App\Console\Commands\FetchDue;
-use App\Models\UrlResearch;
 use Illuminate\Console\Scheduling\Schedule;
 use Lorisleiva\CronTranslator\CronTranslator;
 use Throwable;
@@ -49,8 +49,10 @@ class ScheduleHelper
             ->withoutOverlapping(5);
         // Prune old log messages
         $schedule->command('model:prune', ['--model' => [LogMessage::class]])->daily();
-        // Prune search research results.
-        $schedule->command('model:prune', ['--model' => [UrlResearch::class]])->daily();
+        // Nightly database backup (DipAlert).
+        $schedule->command(BackupDatabase::COMMAND, ['--reason' => 'nightly'])->dailyAt('03:00');
+        // Prune finished job batches older than 30 days (DipAlert runs are batches).
+        $schedule->command('queue:prune-batches', ['--hours' => 720])->daily();
         // Prune expired Sanctum tokens
         $schedule->command('sanctum:prune-expired', ['--hours' => 24])->daily();
     }

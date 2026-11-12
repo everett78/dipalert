@@ -5,7 +5,6 @@ namespace App\Services\Helpers;
 use App\Enums\NotificationMethods;
 use App\Models\User;
 use Illuminate\Support\Collection;
-use InvalidArgumentException;
 
 class NotificationsHelper
 {
@@ -16,12 +15,9 @@ class NotificationsHelper
     public static function getServices(): Collection
     {
         return collect(SettingsHelper::getSetting(self::NOTIFICATION_SERVICES_KEY, []))
-            ->each(fn ($service, $key) => NotificationMethods::tryFrom($key)
-                ? true
-                : throw new InvalidArgumentException(
-                    sprintf('Invalid notification service: %s', $key)
-                ) // Ensure the service is valid.
-            )
+            // Skip services removed in DipAlert (e.g. ntfy, Pushover) that may
+            // still be stored in old settings.
+            ->filter(fn ($service, $key) => NotificationMethods::tryFrom((string) $key) !== null)
             ->mapWithKeys(fn ($service, $key) => [
                 // Merge the service user settings with app values like channel.
                 $key => array_merge(

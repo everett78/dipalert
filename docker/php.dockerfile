@@ -28,6 +28,7 @@ RUN php -r 'if (version_compare(PHP_VERSION, $argv[1], "<")) { fwrite(STDERR, "P
 
 ARG APP_VERSION=development
 ENV APP_VERSION=${APP_VERSION}
+ENV APP_NAME=DipAlert
 
 COPY ../.. /app
 COPY --from=builder /app/vendor /app/vendor

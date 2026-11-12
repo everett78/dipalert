@@ -34,16 +34,20 @@ trait FormHelperTrait
         bool $flat = false,
         int $cols = 2,
     ): Section|Group {
-        $inner = Group::make([
-            Toggle::make($subPath.'.enabled')->reactive(),
+        $components = [Toggle::make($subPath.'.enabled')->reactive()];
 
-            // Only make additional settings if schema exists.
-            Group::make($schema)
+        // Only add the settings group when there are settings. An always-hidden
+        // group with the same state path would drop "<subPath>.enabled" on save
+        // (hidden components are not dehydrated), e.g. a section with only a toggle.
+        if (! empty($schema)) {
+            $components[] = Group::make($schema)
                 ->columns($cols)
                 ->statePath($subPath)
-                ->hidden(fn ($get) => ! $get($subPath.'.enabled') || empty($schema))
-                ->reactive(),
-        ])->statePath($rootPath);
+                ->hidden(fn ($get) => ! $get($subPath.'.enabled'))
+                ->reactive();
+        }
+
+        $inner = Group::make($components)->statePath($rootPath);
 
         if ($flat) {
             return Group::make([
