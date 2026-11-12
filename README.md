@@ -25,8 +25,11 @@ wymienia plik [NOTICE](NOTICE).
     i dzienny e-mail o stanie („DipAlert: OK”, „uwagi (N)” albo „AWARIA”).
 *   Wykres cen z wyborem sklepów i okresu (zapamiętany w produkcie)
     oraz logotypy sklepów w panelu i w e-mailach.
-*   Kolejne etapy (kolekcje, listy ofert z Ceneo) opisuje dokument
-    projektowy autora.
+*   Kolekcje produktów (dwa poziomy) z szablonem progów i pól atrybutów;
+    produkty tylko w wyłączonych kolekcjach nie są sprawdzane; pulpit
+    grupuje produkty według kolekcji (grupowanie po tagach w ustawieniach).
+*   Kolejne etapy (listy ofert z Ceneo i Skąpca, dostawcy AI) opisuje
+    dokument projektowy autora.
 
 ## Dzienny e-mail
 

@@ -6,6 +6,7 @@ use App\Filament\Widgets\ProductStats;
 use App\Models\Product;
 use App\Models\Tag;
 use App\Models\User;
+use App\Services\Helpers\SettingsHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,6 +21,9 @@ class ProductStatsTest extends TestCase
         parent::setUp();
         $this->user = User::factory()->create();
         $this->actingAs($this->user);
+
+        // These tests cover grouping by tags; DipAlert groups by collections by default.
+        SettingsHelper::setSetting('dashboard_grouping', 'tags');
     }
 
     public function test_products_are_grouped_and_sorted_by_tag_weight(): void

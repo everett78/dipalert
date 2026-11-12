@@ -28,6 +28,11 @@ class AppSettings extends Settings
     public bool $per_product_failure_alerts = false;
 
     /**
+     * Dashboard grouping: "collections" (DipAlert) or "tags" (PriceBuddy).
+     */
+    public string $dashboard_grouping = 'collections';
+
+    /**
      * Delayed, schedule-level retries for a failed URL scrape. Distinct from
      * max_attempts_to_scrape, which retries immediately in-process within a
      * single scrape. scrape_retry_max_attempts is the TOTAL attempt count

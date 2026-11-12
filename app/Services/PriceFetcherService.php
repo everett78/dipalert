@@ -57,9 +57,8 @@ class PriceFetcherService
     public function updateAllPrices(): ?Batch
     {
         $products = Product::query()
-            ->select('id')
-            ->published()
-            ->where('paused', false)
+            ->select('products.id')
+            ->shouldBeChecked()
             ->whereNull('refresh_interval')
             ->with('urls:id,product_id,store_id')
             ->get();
@@ -90,8 +89,7 @@ class PriceFetcherService
     public function updateDuePrices(): void
     {
         $due = Product::query()
-            ->published()
-            ->where('paused', false)
+            ->shouldBeChecked()
             ->whereNotNull('refresh_interval')
             ->where(fn ($query) => $query
                 ->whereNull('next_check_at')

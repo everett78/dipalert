@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use App\Enums\NotificationMethods;
+use App\Models\Collection as ProductCollection;
 use App\Models\Product;
 use App\Models\Store;
 use App\Models\User;
 use App\Observers\StoreObserver;
+use App\Policies\CollectionPolicy;
 use App\Policies\ProductPolicy;
 use App\Policies\StorePolicy;
 use App\Policies\UserPolicy;
@@ -49,6 +51,7 @@ class AppServiceProvider extends ServiceProvider
     protected function registerPolicies(): void
     {
         Gate::policy(Product::class, ProductPolicy::class);
+        Gate::policy(ProductCollection::class, CollectionPolicy::class);
         Gate::policy(Store::class, StorePolicy::class);
         Gate::policy(User::class, UserPolicy::class);
 

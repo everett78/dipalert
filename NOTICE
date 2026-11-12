@@ -35,3 +35,8 @@ Modifications to the original work (GPL-3.0, section 5a):
             the chosen stores only, store logos (fetched from the home
             page or uploaded; PNG, JPEG, ICO, WebP only) shown in the panel
             and embedded in e-mails.
+2026-11-12  Stage 5: product collections (two levels) with a template of
+            thresholds and attribute fields copied into new products,
+            product attributes, products only in disabled collections not
+            checked, deleting collections and products after typing the
+            name, dashboard grouped by collections (tags still available).

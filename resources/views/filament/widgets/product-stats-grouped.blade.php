@@ -15,7 +15,31 @@
         @endif
     @endforeach
 
-    @if (empty($groups))
+    @if ($grouping === 'collections')
+        @if (empty($collectionGroups['collections']) && $collectionGroups['uncollected']->isEmpty())
+            @livewire(NoProductsFound::class)
+        @else
+            @foreach ($collectionGroups['collections'] as $group)
+                <x-collection-card :group="$group" />
+            @endforeach
+
+            @if ($collectionGroups['uncollected']->isNotEmpty())
+                <div class="mb-8" data-collection="none">
+                    <h3 class="fi-header-heading mb-4 flex gap-2 items-center text-xl md:text-2xl font-bold tracking-tight text-gray-950 dark:text-white">
+                        <x-filament::icon icon="heroicon-s-inbox" class="h-5 w-5 text-gray-400 dark:text-gray-600" />
+                        {{ __('Bez kolekcji') }}
+                    </h3>
+                    <div class="fi-wi-stats-overview-stats-ctn grid gap-6 md:grid-cols-2 2xl:grid-cols-3">
+                        @foreach ($collectionGroups['uncollected'] as $product)
+                            <div wire:key="nocol-prod-{{ $product->id }}">
+                                <x-product-card :product="$product" :draggable="false" />
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+        @endif
+    @elseif (empty($groups))
         @livewire(NoProductsFound::class)
     @else
         <div

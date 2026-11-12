@@ -56,6 +56,8 @@ class CreateProduct extends CreateRecord
             $product->tags()->syncWithoutDetaching($tagIds);
         }
 
+        ProductResource::syncCollections($product, (array) data_get($data, 'collection_ids', []), detach: false);
+
         return $product;
     }
 }

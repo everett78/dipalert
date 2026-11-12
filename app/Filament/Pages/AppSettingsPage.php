@@ -249,6 +249,17 @@ class AppSettingsPage extends SettingsPage
                     ->label(__('Also send an e-mail for each product that failed'))
                     ->columnSpanFull(),
             ])->columns(2),
+            self::makeSettingsHeading(__('Dashboard'), __('How products are grouped on the home page')),
+            Group::make([
+                Select::make('dashboard_grouping')
+                    ->label(__('Group products by'))
+                    ->options([
+                        'collections' => __('Collections'),
+                        'tags' => __('Tags'),
+                    ])
+                    ->selectablePlaceholder(false)
+                    ->required(),
+            ])->columns(2),
         ]);
     }
 
