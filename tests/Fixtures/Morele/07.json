@@ -1,0 +1,611 @@
+{
+  "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-32-gb-3600mhz-cl16-f4-3600c16d-32gtzrc-6446006/",
+  "blocks": [
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "ProductGroup",
+        "@id": "https://www.morele.net/#product-group-63855",
+        "name": "Pamięć G.Skill Trident Z RGB, DDR4",
+        "productGroupID": "63855",
+        "brand": {
+          "@type": "Brand",
+          "name": "G.Skill"
+        }
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "productID": "6446006",
+        "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+        "description": "Najlepsza pamięć DDR4 właśnie stała się lepsza! Zestaw pamięci Trident Z RGB DDR4 z całkowicie odsłoniętą listwą świetlną z żywymi diodami LED RGB, połączony z nagradzaną konstrukcją rozpraszaczy ciepła Trident Z i zbudowany z najwyższej jakości komponentów, łączy najbardziej żywe oświetlenie RGB z bezkompromisową wydajnością. Pełna obsługa RGB Nieosłonięty pasek świetlny jest przeznaczony do zadowalania wizualnego w pełnym RGB. Domyślne oświetlenie obejmuje płynną falę tęczy o pełnym spektrum. Oprogramowanie do pobrania umożliwia rozszerzone dostosowanie efektów i kolorów modułów pamięci. Kolor pasuje do twojej kompilacji i przemyśl możliwości dzięki RGB. Wyjątkowo zaprojektowany Trident Z RGB zachowuje kultowy element tradycyjnego zestawu Trident Z? Wyposażony w luksusowe aluminiowe nakładki ciepła wykończone linią włosów i agresywną konstrukcję żeber zapewniającą bardzo wydajne odprowadzanie ciepła. Górna część radiatora została zaprojektowana wyłącznie do zamontowania szerszego rozpraszacza światła, co zapewnia bardziej ekstrawaganckie efekty świetlne. Nie szukaj już pamięci, która łączy wydajność i piękno do budowy stylowego, nowoczesnego komputera! Trident Z oznacza podkręcanie Każdy zestaw pamięci zawiera specjalnie ekranowane układy scalone dzięki niezrównanemu procesowi selekcji G.SKILL i specjalnie zaprojektowaną dziesięciowarstwową płytkę drukowaną zapewniającą maksymalną stabilność sygnału; a każdy zestaw jest rygorystycznie testowany pod kątem niezawodności, kompatybilności i wydajności w szerokiej gamie płyt głównych. Reveal Your Inner Colors Stwórz jedyny w swoim rodzaju komputer z zestawem pamięci Trident Z RGB! Najlepszą cechą funkcji RGB jest możliwość wyboru żądanych kolorów. Niezależnie od tego, czy jest biały jednego dnia, czy zielony następnego, możesz być pewien, że moduły te będą wyglądały na aktualne i nowoczesne w każdej wersji.",
+        "category": [
+          "Podzespoły komputerowe > Pamięci RAM",
+          {
+            "@type": "CategoryCode",
+            "inCodeSet": "https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt",
+            "codeValue": "2414"
+          }
+        ],
+        "color": "Czarny",
+        "sku": "6446006",
+        "gtin13": "4713294223500",
+        "brand": {
+          "@type": "Brand",
+          "name": "G.Skill"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-32-gb-3600mhz-cl16-f4-3600c16d-32gtzrc-6446006/",
+        "image": [
+          "https://images.morele.net/i1064/6446006_0_i1064.jpg",
+          "https://images.morele.net/i1064/6446006_1_i1064.jpg",
+          "https://images.morele.net/i1064/6446006_2_i1064.jpg",
+          "https://images.morele.net/i1064/6446006_3_i1064.jpg",
+          "https://images.morele.net/i1064/6446006_4_i1064.jpg",
+          "https://images.morele.net/i1064/6446006_5_i1064.jpg"
+        ],
+        "offers": {
+          "@type": "Offer",
+          "availability": "https://schema.org/InStock",
+          "price": 1536.99,
+          "priceCurrency": "PLN",
+          "priceValidUntil": "2026-11-12",
+          "itemCondition": "https://schema.org/NewCondition",
+          "seller": {
+            "@type": "Organization",
+            "name": "Morele.net Sp. z o.o."
+          },
+          "shippingDetails": {
+            "@type": "OfferShippingDetails",
+            "shippingRate": {
+              "@type": "MonetaryAmount",
+              "minValue": 0,
+              "maxValue": 25.99,
+              "currency": "PLN"
+            },
+            "shippingDestination": {
+              "@type": "DefinedRegion",
+              "addressCountry": "PL"
+            },
+            "deliveryTime": {
+              "@type": "ShippingDeliveryTime",
+              "handlingTime": {
+                "@type": "QuantitativeValue",
+                "minValue": 0,
+                "maxValue": 1,
+                "unitCode": "DAY"
+              },
+              "transitTime": {
+                "@type": "QuantitativeValue",
+                "minValue": 1,
+                "maxValue": 12,
+                "unitCode": "DAY"
+              }
+            }
+          },
+          "hasMerchantReturnPolicy": {
+            "@type": "MerchantReturnPolicy",
+            "applicableCountry": "PL",
+            "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+            "merchantReturnDays": 14,
+            "returnMethod": "https://schema.org/ReturnByMail",
+            "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility"
+          }
+        },
+        "model": "F4-3600C16D-32GTZRC",
+        "mpn": "F4-3600C16D-32GTZRC",
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.94",
+          "reviewCount": 49,
+          "bestRating": "5",
+          "worstRating": "1"
+        },
+        "review": [
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "TOM - MAR TOMASZ LOTKO"
+            },
+            "datePublished": "2021-09-26T11:06:04+02:00",
+            "reviewBody": "Jak najbardziej ok.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "kostek8"
+            },
+            "datePublished": "2024-12-16T08:53:09+01:00",
+            "reviewBody": "Świetne pamięci, miałem co prawda problem z działaniem na MSI x470 na najnowszym biosie nawet na \"awaryjnych\" ustawieniach (niskie częstotliwości)... podobno kompatybilność z pamięiciami leży głównie po stronie procka... i na szczęście nie w moim przypadku. Skusiłem się na zmianę płyty na Gigabyte B550 którą udało się kupić na promocji no i pięknie działają na standardowych ustawieniach XMP. Na OC jeszcze się nie skusiłem.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Szymon"
+            },
+            "datePublished": "2023-09-08T16:05:21+02:00",
+            "reviewBody": "Świetna pamięć, bdb wykonana, radiatory masywne. Profil XMP ruszył bez problemu na platformie B560 z i5-11400F w trybie GEAR 1. Niestety próba OC czy zmiany opóźnień na inne niż te w profilu, kończyły się niepowodzeniem. Estetyczne podświetlenie, które można bez problemu kontrolować bez udziału aplikacji producenta, żywe kolory - chociaż zdjęcie tego niestety nie oddaje.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Pikuś"
+            },
+            "datePublished": "2024-08-22T22:38:11+02:00",
+            "reviewBody": "pamięci super ,profil XMP działa bez żadnego problemu. kompatybilne z każdym programem płyt głównych sterującym oświetleniem. jedynym minusem jaki widzę to niestety bardzo słabo nadają się do podkręcania",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Techopiekun Wadowice"
+            },
+            "datePublished": "2021-05-15T15:56:23+02:00",
+            "reviewBody": "Za wysokie na mój potworny cooler. Zwróciłem. Przynajmniej wiem, że są fajne, ale zaoszczędziłem na braku RGB 400zł. Mimo wszystko wciąż te RAMy są drogie jak cholera.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Paweł"
+            },
+            "datePublished": "2023-09-05T17:09:47+02:00",
+            "reviewBody": "Wszystko ok. Działają na taktowaniach 3600MHz na plycie glownej MSI B660 Tomahawk. Fajne RGB sterowalne z poziomu MSI Center",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Albin3"
+            },
+            "datePublished": "2024-08-23T00:43:13+02:00",
+            "reviewBody": "Uruchomione bez problemu. Zmieniłem z 16Gb na te. Poprzednie miałem 5 lat. Żadnych problemów.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Grzegorz."
+            },
+            "datePublished": "2024-10-12T18:28:26+02:00",
+            "reviewBody": "Idealne pamięci. Ładnie świecą.Szybkie i od strzała chodzą na profilu xmp na płycie MSI meg B550 Unify-X.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Paweł"
+            },
+            "datePublished": "2025-09-17T08:46:12+02:00",
+            "reviewBody": "Świetne! RGB przepiękne. Ram się nie grzeje, nawet przy mocniejszym OC. Bardzo stabilne.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Łukasz Ziętara"
+            },
+            "datePublished": "2022-06-13T18:18:34+02:00",
+            "reviewBody": "fajny design i dobra pamięć a przede wszystkim kompatybilna z hackintosh'em",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Tomasz"
+            },
+            "datePublished": "2026-06-29T20:53:02+02:00",
+            "reviewBody": "Asus Prime b350-plus chodzą na 3600 cl16 bez problemu.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Tomek"
+            },
+            "datePublished": "2026-10-05T23:47:15+02:00",
+            "reviewBody": "W obecnej sytuacji, najlepsza cena w stosunku do parametrów.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "frosti"
+            },
+            "datePublished": "2022-10-26T13:14:18+02:00",
+            "reviewBody": "Nieco przepłacone według mnie, ale prezentują się super.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Maciej"
+            },
+            "datePublished": "2022-07-29T17:07:16+02:00",
+            "reviewBody": "Jestem bardzo zadowolony z jakości i wykonania",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Marcin"
+            },
+            "datePublished": "2021-10-13T23:12:11+02:00",
+            "reviewBody": "zdecydowanie jedne z lepszych pamięci na rynku.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Valerii"
+            },
+            "datePublished": "2024-02-14T10:47:15+01:00",
+            "reviewBody": "Xmp działa według parametrów, argb ładne",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Emir"
+            },
+            "datePublished": "2022-07-26T06:46:52+02:00",
+            "reviewBody": "Zadowolony i z produktu i sprzedawcy.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "Patrycja Gawłowska"
+            },
+            "datePublished": "2022-05-16T21:50:41+02:00",
+            "reviewBody": "Najlepsze, nie ma co dalej szukać.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "jarkes"
+            },
+            "datePublished": "2022-10-27T08:38:29+02:00",
+            "reviewBody": "Bardzo dobra stabilna pamięć.",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          },
+          {
+            "@type": "Review",
+            "author": {
+              "@type": "Person",
+              "name": "tyka"
+            },
+            "datePublished": "2023-09-06T09:01:59+02:00",
+            "reviewBody": "- A-RGB - radiator - wysoka",
+            "name": "Pamięć G.Skill Trident Z RGB, DDR4, 32 GB, 3600MHz, CL16 (F4-3600C16D-32GTZRC)",
+            "reviewRating": {
+              "@type": "Rating",
+              "bestRating": "5",
+              "ratingValue": "5",
+              "worstRating": "1"
+            }
+          }
+        ],
+        "additionalProperty": [
+          {
+            "@type": "PropertyValue",
+            "name": "Linia",
+            "value": "Trident Z RGB"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Typ pamięci",
+            "value": "DDR4"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Typ złącza",
+            "value": "UDIMM"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Chłodzenie",
+            "value": "Radiator"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Pojemność łączna",
+            "value": "32 GB"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Liczba modułów",
+            "value": "2"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Częstotliwość pracy [MHz]",
+            "value": "3600"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Opóźnienie",
+            "value": "CL16"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Napięcie [V]",
+            "value": "1.35"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Technologia podkręcania",
+            "value": "Intel XMP 2.0"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Niskoprofilowe",
+            "value": "Nie"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Kolor",
+            "value": "Czarny"
+          },
+          {
+            "@type": "PropertyValue",
+            "name": "Podświetlenie",
+            "value": "RGB"
+          }
+        ],
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "inProductGroupWithID": "63855"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-16-gb-3000mhz-cl16-f4-3000c16d-16gtzr-1118470/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-64-gb-2933mhz-cl14-f4-2933c14q2-64gtzrx-1638161/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-32-gb-3200mhz-cl16-f4-3200c16d-32gtzr-4582589/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-16-gb-3200mhz-cl16-f4-3200c16d-16gtzrx-4583879/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-32-gb-3200mhz-cl16-f4-3200c16q-32gtzrx-4596126/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-16-gb-3600mhz-cl18-f4-3600c18d-16gtzrx-5643208/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-32-gb-3200mhz-cl16-f4-3200c16d-32gtzrx-6045512/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-64-gb-3200mhz-cl16-f4-3200c16q-64gtzr-6276731/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-32-gb-3600mhz-cl18-f4-3600c18d-32gtzr-6415036/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-16-gb-3600mhz-cl16-f4-3600c16d-16gtzrc-6471698/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-16-gb-3600mhz-cl18-f4-3600c18d-16gtzr-6471703/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-16-gb-4000mhz-cl18-f4-4000c18d-16gtzrb-6477286/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-64-gb-3200mhz-cl16-f4-3200c16d-64gtzr-6729204/"
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "isVariantOf": {
+          "@id": "https://www.morele.net/#product-group-63855"
+        },
+        "url": "https://www.morele.net/pamiec-g-skill-trident-z-rgb-ddr4-64-gb-4000mhz-cl18-f4-4000c18d-64gtzr-7290505/"
+      }
+    ]
+  ]
+}

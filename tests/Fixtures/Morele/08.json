@@ -1,0 +1,521 @@
+{
+  "url": "https://www.morele.net/procesor-amd-ryzen-7-5800x-3-8-ghz-32-mb-box-100-100000063wof-7267024/",
+  "blocks": [
+    {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "productID": "7267024",
+      "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+      "description": "Procesor AMD Ryzen 7 5800X Elitarny procesor gamingowy AMD Ryzen 7 5800X przeniesie rozgrywkę na zupełnie nowy poziom. Wykorzystaj moc ośmiu rdzeni, których parametry zoptymalizowano właśnie pod kątem najbardziej wymagających zastosowań. Wysoka wydajność w cenie Sięgnij po procesor, który nie ogranicza możliwości komputera. Jednostka AMD Ryzen 7 5800X dysponuje bowiem 8 rdzeniami i 16 wątkami, a łączna pojemność jego pamięci cache wynosi 36 MB. Taktowanie bazowe utrzymuje się na poziomie 3.8 GHz, by w trybie turbo osiągać nawet 4.7 GHz i to wciąż nie będzie ostatecznym wynikiem. Procesor AMD Ryzen 7 5800X ma odblokowany mnożnik, dlatego jego maksymalny poziom wydajności można jeszcze nieco podkręcić, by zyskać wyższe zdolności obliczeniowe, które są tak istotne w profesjonalnych zastosowaniach oraz w topowych grach. Stwórz idealną konfigurację od podstaw Procesor AMD Ryzen 7 5800X nie dysponuje zintegrowanym układem graficznym lub standardowym chłodzeniem fabrycznym, dzięki czemu nie musisz ograniczać się do narzuconych domyślnie rozwiązań. Skomponuj swoją konfigurację od podstaw, dobierz chłodzenie, które zapewni pełną skuteczność działania pod dużym obciążeniem, a także wyposaż konfigurację w wybraną jednostkę graficzną o preferowanych parametrach. Procesor AMD Ryzen 7 5800X świetnie współgra z najnowszymi układami graficznymi ze średniej i wyższej półki – taki zestaw zapewnia optymalną wydajność w grach. Nowatorska architektura i udoskonalony proces technologiczny Procesor AMD Ryzen 7 5800X powstał w udoskonalonym, 7 nm procesie technologicznym, co pozwoliło na uzyskanie lepszych parametrów i wyższej wydajności przy zachowaniu możliwie niskiego poziomu energii. Nowatorska architektura Zen 3 pozwoliła na wykorzystanie pamięci wspólnej L3 dla wszystkich rdzeni, dzięki czemu komunikacja pomiędzy nimi działa tak błyskawicznie i bez zastrzeżeń. Sięgnij po nowoczesną jednostkę, która zapewni optymalną wydajność nie tylko w chwili zakupu, ale przez wiele kolejnych lat użytkowania. Graj bez opóźnień Postaw na bezkompromisową wydajność jednostki AMD Ryzen 7 5800X, która pozwoli na osiągnięcie wysokiej liczby FPS-ów i to przy maksymalnych ustawieniach graficznych. Rozsmakuj się w produkcjach pokroju Metro Exodus lub Wiedźmin Dziki Gon, które będą działały z zachwycającą płynnością. Procesor AMD Ryzen 7 5800X będzie świetnym wyborem do konfiguracji gamingowych, które zapewnią odpowiednie parametry nie tylko do dzisiejszych gier, ale też do tych, które dopiero zadebiutują.",
+      "category": [
+        "Podzespoły komputerowe > Procesory",
+        {
+          "@type": "CategoryCode",
+          "inCodeSet": "https://www.google.com/basepages/producttype/taxonomy-with-ids.en-US.txt",
+          "codeValue": "292"
+        }
+      ],
+      "sku": "7267024",
+      "gtin13": "0730143312714",
+      "brand": {
+        "@type": "Brand",
+        "name": "AMD"
+      },
+      "url": "https://www.morele.net/procesor-amd-ryzen-7-5800x-3-8-ghz-32-mb-box-100-100000063wof-7267024/",
+      "image": [
+        "https://images.morele.net/i1064/7267024_0_i1064.jpg",
+        "https://images.morele.net/i1064/7267024_1_i1064.jpg",
+        "https://images.morele.net/i1064/7267024_2_i1064.jpg",
+        "https://images.morele.net/i1064/7267024_3_i1064.jpg",
+        "https://images.morele.net/i1064/7267024_4_i1064.jpg"
+      ],
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/InStock",
+        "price": 899,
+        "priceCurrency": "PLN",
+        "priceValidUntil": "2026-11-12",
+        "itemCondition": "https://schema.org/NewCondition",
+        "seller": {
+          "@type": "Organization",
+          "name": "Morele.net Sp. z o.o."
+        },
+        "shippingDetails": {
+          "@type": "OfferShippingDetails",
+          "shippingRate": {
+            "@type": "MonetaryAmount",
+            "minValue": 0,
+            "maxValue": 25.99,
+            "currency": "PLN"
+          },
+          "shippingDestination": {
+            "@type": "DefinedRegion",
+            "addressCountry": "PL"
+          },
+          "deliveryTime": {
+            "@type": "ShippingDeliveryTime",
+            "handlingTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 0,
+              "maxValue": 1,
+              "unitCode": "DAY"
+            },
+            "transitTime": {
+              "@type": "QuantitativeValue",
+              "minValue": 1,
+              "maxValue": 2,
+              "unitCode": "DAY"
+            }
+          }
+        },
+        "hasMerchantReturnPolicy": {
+          "@type": "MerchantReturnPolicy",
+          "applicableCountry": "PL",
+          "returnPolicyCategory": "https://schema.org/MerchantReturnFiniteReturnWindow",
+          "merchantReturnDays": 14,
+          "returnMethod": "https://schema.org/ReturnByMail",
+          "returnFees": "https://schema.org/ReturnFeesCustomerResponsibility"
+        }
+      },
+      "model": "100-100000063WOF",
+      "mpn": "100-100000063WOF",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.91",
+        "reviewCount": 799,
+        "bestRating": "5",
+        "worstRating": "1"
+      },
+      "review": [
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Adrian"
+          },
+          "datePublished": "2020-11-16T16:33:17+01:00",
+          "reviewBody": "Cóż, po przesiadce ze starego i7-4790k ten Ryzen wgniata w ziemię. Nawet przeglądarka internetowa działa odczuwalnie szybciej. Procesor sparowany z chłodzeniem Scythe Mugen 5, pasta TG Kryonaut. Włączony Precision Boost Override (tryb auto), napięcia nie dotykałem, zegary utrzymują się w okolicach 4780MHz na wszystkich rdzeniach. Temperatury przy dużym obciążeniu dochodzą do 84st. Procesor dziwnie wyceniony, mógłby być trochę tańszy, żeby lepiej się wpasować pomiędzy 5600X a 5900X.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Bogumił F."
+          },
+          "datePublished": "2021-02-22T17:46:00+01:00",
+          "reviewBody": "Jest to procesor, który bardzo mocno się przegrzewa i bez undervoltingu i super wydajnego AIO na \"dzień dobry\" jedyne na co sobie popatrzysz to zwiechy i restarty. Chęć pogrania sobie w jakąś grę sprawi, że zechcesz go zwrócić jak najszybciej. Opowiem Ci moją historię ;-). Po pierwszym uruchomieniu komputera z owym procesorem, zauważyłem że wentylatory na moim starym AIO Thermaltake Water 3.0 Pro dziwnie przyspieszają strasznie wyjąc i zwalniają, temp. procesora w idle skakała między 40 a 60 stopni C. podkreślam w \"idle\". Postanowiłem na odpalić sobie Cinebenche od R11.5 do R23, przy R20 i R23 temperatury doszły do 90 stopni C. ale komputer się nie zawiesił (za pierwszym razem) ale bardzo mnie to zaniepokoiło - postanowiłem zatem pograć w najnowszego CODa i po 30-40 min gry komputer się sam zrestartował. Potem odpaliłem CyberPunka 15-20 min. gry i zwiecha tym razem bluescreen. Zacząłem więc przeglądać fora, youtuba i okazało się że te procesory przegrzewają się na potęge. Ale żeby się nie rozpisywać, po rzeczytaniu wielu forów i po wielu testach przekażę Wam moje doświadczenia. Posiadam płytę główną Gigabyte Aourus Ultra v1.0 z biosem F60h (próżno szukać opisów jak skonfiguraować ten procesor do płyt Gigabyte'a wszyscy używają tylko chyba MSI, Asusa i Asrocka) od razu podpowiem że olać musicie wszelkie plany zasilania w Windows i tryb ECO w biosie, moje ustawienia to włączony precission Boost (on właśnie powoduje przegrzewanie bo źle dobiera napięcia procesora - może nowszy Bios to poprawi, jak jest wyłączony to wszystko działa super stabilnie i jest chłodno ale morzesz bez problemu ustawić taktoweania od 3800 - 4200 MHz) i Dynamic Vcore (czyli po prostu VCore) ustawiony na -0.072 do -0.88), do tego mam kijowe RAMy Corsaira, które źle się dogadują z tą płytąwięc XMP wyłączone i RAMy na auto i dopiero teraz procesor choć dochodzi w OCCT i Cinebenchach do 85 stopni C. to się nie zawiesza i na tym poprzestaje a w grach nie przekracza 70 stopni C. dojście do tego zajęło mi 2 dni (1 wertowania internetu i 1 testów). Z doświadczenia wiem, że zapewne któraś aktualizacja Bios i Agesy wyeliminuje problem ale jak narazie to są moje tylko pobożne życzenia. Mając Ryzena 7 2700X nie zrobiłem najlepszego interesu bo dałem za R7 5800X 2000 zł. a procesor na jednym wątku jest szybszy o 35% i na wszystkich o 32% względem 2700X. Mam grafikę Radeon RX 5700 XT Nitro+ i w grach podskoczył mi do 20% maksymalny FPS a minimalny jest po prostu bardziej stabilny gram w 3440x1440 bo mam monitor 21:9 i tam różnic wielkich nie widać w FHD są większe ale już lepiej było te 2 tyś. dorzucić do lepszej grafiki, a tak wydałem jeszcze 1 tyś. na nowe wydajniejsze AIO Artic Liquid Freezer II 360 i na nową przewiewną obudowę od Sillentium PC. Ogólnie polecam w szczególności masohistom.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Adrian"
+          },
+          "datePublished": "2024-11-27T12:37:13+01:00",
+          "reviewBody": "Procesor AMD Ryzen 7 5800X to świetny wybór dla graczy oraz profesjonalistów poszukujących wydajnego i wszechstronnego procesora. Oferuje znakomitą wydajność w wielowątkowych i jednowątkowych aplikacjach, jednak brak chłodzenia w zestawie oraz zintegrowanej grafiki może być wadą dla niektórych użytkowników. Mimo to jest to jeden z najbardziej opłacalnych procesorów w swojej kategorii.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Piotr \"Mellin\" Malicki"
+          },
+          "datePublished": "2021-10-09T15:11:48+02:00",
+          "reviewBody": "Przesiadłem się na to cudo ze starego i7-4770 i... różnica na pewno zauważalna. Wsparcie dla Widnows 11 (jednak na razie czekam z przesiadką z powodu początkowy problemów między Win11 i prockami AMD), do 3200MHz DDR4 RAM bez overcloking'u, PCIe 4.0 + Resizeable BAR (na odpowiednich płytach głównych i GPU), 32MB pamięci podręcznej L3 dostępnej przez wszystkie rdzenie... Osobiście sparowałem go z płytą główną ASRock B550M Steel Legend, 16GB RAMu Patriot Viper 4 Blackout (z zacieśnionymi czasami do 16-17-17-29) (2 kości na razie – planuję dokupić następne 2 dla łącznych 32GB) i ASRock RX 5500 XT GPU. Procek chłodzony SilentiumPC Fortis 3 EVO ARGB. Dzięki użyciu narzędzia Clock Tuner for Ryzen on 1usmus@ udało mi się podkręcić procek do następujących profili: PX High (single core boost) – 4,9GHz na 1,375V PX Mid (2? core boost) – 4,8GHz na 1,375V PX Low (4? core) - 4,75GHz na 1,35V P2 (multi-core boost) – 4,7GHz na 1,35V P1 (all core boost) – 4,675GHz na 1,3V Wyniki testów 3DMark i Cinebench R20 na tych ustawieniach (średnie z 3 pomiarów): Cinebench R20 (all thread) – 6206 3DMark's Time Spy: Full score – 5796 Graphics – 5320 CPU – 11774 3DMark's CPU Profile: Max – 8039 1-thread - 982 Na tych profilach z moim chłodzeniem temperatury nie wychodzą ponad 80C: (pomiary temperatur odczytane z HwiNFO64 z „CPU(Tctl/Tdie)” i „CPU Die (avarage)”, wykonane przy temperaturze powietrza 21C +/-0.5C, średnie wartości z ok 5 minut po ustabilizowaniu temperatury) Stan bezczynny - 36,1C i 29,3C P1 (all core boost): 3DMark's CPU Profile „Max threads” test – 73,2C i 69,3C FurMark's CPU burner „16 threads” test – 79,7C i 79,3C PX High (single core boost): 3DMark's CPU Profile „2 threads” test – 64,3C i 60,2C FurMark's CPU burner „2 threads” test – 68,6C i 68,0C",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Marcin"
+          },
+          "datePublished": "2022-10-16T11:03:02+02:00",
+          "reviewBody": "Jestem zadowolony z wydajności i jakości procesora, przesiadłem się z Ryzen5 3600 i odczułem sporą wydajność, od normalnego użytkowania aż po grę w BF2042. Jest to skok w wydajności względem poprzednika, ledwo osiągałem 110 FPS w BF2042, a tu na nowym krzemie szaleję do 150 FPS, przy rozdzielczości 4K IIyma G-Master G83467WQSU 165HZ. Temperatury - Główny wpływ, ma otoczenie w jakim jest pc, im chłodniejsze miejsce tym chłodniejszy procesor, w otoczeniu mam 20 stopni, procesor przy Aio 360 z google chrome + kilka kart, nie przekracza 35 stopni, natomiast w grze max 55 stopni, taka była odnotowana. Latem może być cieplejszy, dlatego lepszym rozwiązaniem w chłodzeniu tego procesora jest Aio 360, z dobrych topowych marek i przewiewna obudowa. Temperaturowo, podobnie z Ryzen5 3600 - to jest tylko moja opinia, wzięta z doświadczenia. Mój sprzęt: Mobo Asus Rog Strix X570F Aio Asus Rog Strix Ryujin 360 1 gen Grafika Asus Rog Strix RTX 3060Ti Ram TridenZ 64GB cl16 3600MHz Dysk Samsung NVME 980 Pro 1TB Zasilacz BeQuiet Silver+ 1000Wat W obudowie Lian Li O11 Dynamic XL ROG Black",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "RadeckiP"
+          },
+          "datePublished": "2024-03-18T18:40:25+01:00",
+          "reviewBody": "Procesor na długie lata. Przy odpowiednim chłodzeniu (u mnie Dark Rock 4 Pro) temperatury nie przekraczają 50 stopni. Obniżyłem napięcie do 1,20V oraz zegary ustawiłem na sztywno na 4600 Mhz i w połączeniu z grafiką RTX 4080 Super (Inno3D) gry pokroju Cyberpunk czy maksymalnie zmodowany Wiedźmin 3 na monitorze 4K śmigają w granicach 70-80 fps'ów (oczywiście wszystko na full + path tracing). Żadnych bottleneck'ów. Według mnie kluczowe jest tutaj również dobranie odpowiednich pamięci z profilem XMP (u mnie G.SKILL Trident Z RGB 2x16GB 3600MHz DDR4 CL16-16-16 XMP2.0). Pomimo czasu jeden z najlepszych procesorów zaś stosunek jakości do ceny jest tutaj bezkonkurencyjny. Pasta użyta to Kryonaut - wg. mnie najlepsza. Długo wahałem się pomiędzy tym procesorem a wersją X3D ale finalnie wybrałem ten ze względu na możliwość ustawiania własnych napięć i taktowania zegarów (czego w wersji X3D nie ma) gdyż różnice w grach, pomiędzy tymi dwoma modelami, były praktycznie nie zauważalne.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Sebastian"
+          },
+          "datePublished": "2020-11-23T14:42:14+01:00",
+          "reviewBody": "Na wstępie wielki plus idzie do morele za szybką realizacje i wysyłkę towaru, procesor zakupiony w czwartek a już na drugi dzień był u mnie o 12, co do samego procesora to co tu dużo pisać... przeskok w wydajności z 7 2700X ogromy nawet rtx 2070 wreszcie pokazał swój potencjał, procesor działa na płycie asus tuf gaming x570-plus razem z pamięciami patriot DDR4 32 GB 3200 na swoich bazowych zegarach, jak dotąd nie spotkałem się z jakimiś problemami (odpukać) zwłaszcza po wgraniu najnowszego biosu do płyty który jest w wersji beta, natomiast musiałem dać puł gwiazdki mniej zacene, AMD widać nie tylko dogania intela w wydajności ale także i wyśrubowanych cenach bo powiedzmy sobie szczerze ten procesor powinien kosztować max 1700/1800zł i zapewne w takiej cenie pojawi się 5700x w pierwszym kwartale 2021 kiedy to maja się ukazać nowe procki od Intela",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Adam"
+          },
+          "datePublished": "2025-02-20T19:31:31+01:00",
+          "reviewBody": "Procesor śmiga aż miło. Bardzo łatwa instalacja, instrukcja bardzo przejrzyście napisana. Mam ten procesor na razie trzeci dzień, jeszcze nie poznałem całego jego potencjału (przyznam szczerze, że nigdy nie bawiłem się w podkręcanie - jest to temat do przestudiowania przeze mnie), gdyż działam obecnie na \"poprzednim\" systemie, w najbliższym czasie zamierzam postawić całkowicie nowy system i zainstalować wszystkie sterowniki pod AMD. Niemniej przeskok z procesora Intel i5-6500 widoczny gołym okiem (w działaniu samej przeglądarki nawet, nie wspominając o grach). Pierwszy raz jestem właścicielem procesora AMD i jestem zadowolony jak na razie, szczerze polecam.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Michał"
+          },
+          "datePublished": "2021-03-10T08:41:29+01:00",
+          "reviewBody": "Moje doświadczenie wiąże się ze znaczącym upgradem procesora (z intel i5 4690). Wpływ zmiany CPU na 5800X odczuwam w dosłownie każdym aspekcie korzystania z komputera, zarówno w programach użytkowych z których korzystam (analizy statystyczne i data mining czy tworzenie i obróbka muzyki) jak i rozrywce (gry). Procesor działa bardzo szybko i stabilnie. Automatyczne OC programem od AMD podbiło taktowanie do maksymalnego 4,950 MHz, a dzięki odpowiednio dobremu chłodzeniu (be quiet! Dark Rock 4 Pro) temperatura nawet przy długim obciążeniu nie przekraczała 62 stopni. Polecam!",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Paweł"
+          },
+          "datePublished": "2021-09-24T19:35:16+02:00",
+          "reviewBody": "Świetny procesor. Mam chłodznenie Dark rock 4 pro . Temperatury w Cinebench 66-67 stopni. W grach zależy, ale w RDR2 mam 60~ Oczywiście został zastosowany overvolting, ale wyniki w cinebenchu wzrosły a temperatura drastycznie spadła. Bez żadnej konfiguracji w Bios miałem 90 stopni w Cinebenchu. Jak ktoś nie potrafi posługiwać się Biosem to nie polecam. Po przesiadce z Ryzena 2600 Wydajność w aplikacjach wzrosła drastycznie, do programowania, kompilowania dosłownie 200% lepiej. W grach zależy, ale w CPU grach też ogromne wzrosty, w BF5 praktycznie x2 tyle FPS, a w RDR2 wzorst może 2-3% więcej.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "nixxx"
+          },
+          "datePublished": "2021-03-06T02:05:51+01:00",
+          "reviewBody": "Procesor jest wydajny ale wymaga porządnego chłodzenia. Ze wszystkich Ryzenów serii 5000 ma najwyższy współczynnik watt per core. Przy maksymalnym obciążeniu temperatury wahają się od 80 do 90 stopni ale nie jest to powód do niepokoju gdyż AMD same podaje takie wartości jako referencyjne. Platforma B550 jest na tyle dojrzała, że bez problemu można stosować undervolting przy jednoczesnym zwiększeniu zegarów. Przesiadłem się z Ryzena 2700X i różnicę widać nie tylko podczas normalnego korzystania z neta ale także w grach gdzie w końcu nie ma zjawiska bottlenrkowania mojego RTXa 2080 Ti",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Michał"
+          },
+          "datePublished": "2020-12-23T11:44:37+01:00",
+          "reviewBody": "Petarda. Działa na płycie x470 z pamięcią 3600MHz CL14-15-15-15 na 1.4v. Taktowanie multi jak i single core znacznie ponad reklamowane bez żadnego OC, PBO samo robi robotę. Wydajność w produkcji (filmy i render) oraz w grach 20-50% więcej niż 3800X przy takich samych pozostałych komponentach. Procesor dość gorący, polecam zainwestować w dobre chłodzenie ponieważ AMD PBO dostosowuje moc procesora do temperatur. Przy słabym chłodzeniu wydajność będzie mniejsza, wtedy lepiej kupić tańszy słabszy procesor po prostu, wyjdzie na to samo.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Tomasz"
+          },
+          "datePublished": "2021-02-08T09:13:30+01:00",
+          "reviewBody": "W testach wypada lepiej niż Intel i9 10th gen, w użytkowaniu nie czuć ograniczania karty graficznej (2080 Ti), w idle Windows 10 zużycie 0-2%. Wyższa wydajność niż większość ludzi będzie kiedykolwiek potrzebować i do tego w całkiem niezłej cenie.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Michał"
+          },
+          "datePublished": "2021-03-25T23:42:51+01:00",
+          "reviewBody": "Procesor rewelacyjny, przesiadka z 2600 jest zdecydowanie odczuwalna. Nie będę się rozpisywał o szczegółach bo te zapewne każdy zainteresowany zna. To co dla mnie było istotne to chłodzenie. Wiele ludzi przestrzegało przed tym ze procek ten lubi się grzać. Złożyłem zatem całego kompa pod ten procek. Na płycie Aorus X570 z Krakenem X63 i w obudowie CM NR200 mam temperatury w idle na poziomie 42 i w stresie 70. Na stockowym coolerze potrafil przekroczyć 90. Polecamy ten procek ale warto uzbroić się w dobre chłodzenie.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Jakub M."
+          },
+          "datePublished": "2020-11-15T14:17:06+01:00",
+          "reviewBody": "Przesiadłem się na ten procesor z Ryzena 7 3800x. Po kilku dniach testowania, mogę powiedzieć, że wydajność jest na pewno wyższa i zauważalna przy codziennym używaniu kompa. W grach, przynajmniej niektórych, wartość FPS wzrosła o kilka do kilkunastu punktów. Spadki FPSów też są mniejsze. Procesor chłodzony Navisem 240 RGB utrzymuje temperaturę na poziomie 33 stopni w spoczynku, ok 60-65 stopni w grach i 80 stopni przy sztucznym obciążeniu.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Łukasz"
+          },
+          "datePublished": "2021-01-18T22:25:05+01:00",
+          "reviewBody": "Zmiana z 3700X i powiem, że różnica jest kolosalna. W końcu wymagające gry pod VR działają bez zarzutu z 120/144 FPS'ami. Aż tego się nie spodziewałem. U mnie w zestawie z MSI Thomahawk B450 MAX + Asus 3080 TUF OC. Co do temperatur to początkowo myślałem, że będzie tragedia, bo Cinebench R23 powodował 90C i procek zwalniał. Okazało się po analizie, że mam na odwrót założony wentylator na Fortisie 3. Po zmianie 85C maks w pełnym obciążeniu. Idle poniżej 40C, a gaming 65-75. Więc nic tylko brać :)",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Dawid"
+          },
+          "datePublished": "2023-08-27T01:34:14+02:00",
+          "reviewBody": "Ryzen 7 ma działać szybko, i działa szybko. Przenosząc się na ten sprzęt z i5-2500K jestem oszołomiony prędkością. Podobnie jak z tą i5, czuję że ten procesor wystarczy na kolejne 10 lat. Największym szokiem jest temperatura. Procesor w maksymalnym turbo dobija 90°C i rzekomo jest to całkowicie normalne. Ciężko mi się do tego przyzwyczaić więc zmieniłem próg throttle w BIOS. Polecam każdemu spróbować undervoltingu z tym procesorem, można mocno zwiększyć wydajność nie zwiększając temperatur.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Pater"
+          },
+          "datePublished": "2022-02-08T10:14:27+01:00",
+          "reviewBody": "Mega procesor w cenie 1700 zł po przesiadce ze starego i5, do montażu i sporadycznego grania perfekcyjnie się sprawuje 10/10, problemem mogą być temperatury dla niektórych. W cr20 w stocku ma ~6050p i osiaga az 73C przy 360mm AIO, podczas minimalnego OC w CTR osiagnal ~6150p przy 79C, Przy undervoltingu osiągnął 4,2ghz max i ~5800p przy max 65-70C co uznaje za idealne. W grach przeważnie spokojnie 40-55C, a w idlu 25-35C. Polecam bardzo.",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Józef"
+          },
+          "datePublished": "2021-11-22T20:22:57+01:00",
+          "reviewBody": "Ryzen Master - automatyczne : tryb turbo 4,8 GHz / NIE 4,7 / ,potem również automatycznie 4,95 GHz / na pewno nieco zostało zaokrąglone ,czyli obstawiam że pomiędzy 4,93 a 4,94 / Sprawdziłem z ciekawości bo na moją kartę graficzną AMD Radeon RX 6700 XT wystarczy zwykłe automatyczne podkręcenie płyty głównej - w przypadku tego procesora 4,2 GHz na /Asus / TUF GAMING X570 plus - czyli procesor perspektywiczny ,na kilka lat -POLECAM",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        },
+        {
+          "@type": "Review",
+          "author": {
+            "@type": "Person",
+            "name": "Kamil"
+          },
+          "datePublished": "2023-02-26T19:56:30+01:00",
+          "reviewBody": "Powiem tak, przez ostatnie 13lat korzystalem tylko z intela i tym razem tez chcialem zakupic i7-13700k ale Kolega namowil mnie na procesor od amd i nie jestem zawiedziony. Kolego/kolezanko powiem to co ja bym chcial uslyszec wprost przed zakupem. Jezeli masz przeplacac X zł bo intel, to kup ten procesor jest tak samo wydajny a pare dobrych stowek jest w kieszeni. Od dzisiaj jestem team czerwony (tylko jezeli chodzi o procesor)",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "reviewRating": {
+            "@type": "Rating",
+            "bestRating": "5",
+            "ratingValue": "5",
+            "worstRating": "1"
+          }
+        }
+      ],
+      "additionalProperty": [
+        {
+          "@type": "PropertyValue",
+          "name": "Fraza",
+          "value": "AMD Ryzen 7 Black Friday, Black Friday"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Wersja opakowania",
+          "value": "BOX"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Załączone chłodzenie",
+          "value": "Nie"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Typ gniazda",
+          "value": "Socket AM4"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Liczba rdzeni",
+          "value": "8 rdzeni"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Liczba wątków",
+          "value": "16"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Częstotliwość taktowania procesora",
+          "value": "3.8 GHz"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Częstotliwość maksymalna Turbo",
+          "value": "4.7 GHz"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Zintegrowany układ graficzny",
+          "value": "Nie posiada"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Odblokowany mnożnik",
+          "value": "Tak"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Wynik Benchmark",
+          "value": "27857"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Architektura",
+          "value": "64 bit"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Mikroarchitektura procesora",
+          "value": "Zen 3"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "TDP",
+          "value": "105 W"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Rodzaje obsługiwanej pamięci",
+          "value": "DDR4-3200"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Pamięć podręczna L1",
+          "value": "8 x 32 KB (D), 8 x 32 KB (I)"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Pamięć podręczna L2",
+          "value": "4 MB"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Pamięć podręczna L3",
+          "value": "32 MB"
+        }
+      ],
+      "subjectOf": [
+        {
+          "@type": "VideoObject",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "thumbnailUrl": "https://img.youtube.com/vi/gXTXyvHDKuQ/hqdefault.jpg",
+          "embedUrl": "https://www.youtube.com/embed/gXTXyvHDKuQ",
+          "url": "https://www.youtube.com/watch?v=gXTXyvHDKuQ"
+        },
+        {
+          "@type": "VideoObject",
+          "name": "Procesor AMD Ryzen 7 5800X, 3.8 GHz, 32 MB, BOX (100-100000063WOF)",
+          "thumbnailUrl": "https://img.youtube.com/vi/yr_KU4q5rpI/hqdefault.jpg",
+          "embedUrl": "https://www.youtube.com/embed/yr_KU4q5rpI",
+          "url": "https://www.youtube.com/watch?v=yr_KU4q5rpI"
+        }
+      ]
+    }
+  ]
+}

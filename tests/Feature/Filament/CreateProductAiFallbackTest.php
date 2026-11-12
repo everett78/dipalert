@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Filament;
 
+use App\Filament\Resources\ProductResource;
 use App\Filament\Resources\ProductResource\Pages\CreateProduct;
 use App\Models\Store;
 use App\Models\User;
+use App\Notifications\CreateProductFailedNotification;
 use App\Services\AiConfigHealer;
 use App\Services\Helpers\SettingsHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -92,21 +94,25 @@ class CreateProductAiFallbackTest extends TestCase
         $this->assertDatabaseHas('products', ['title' => 'AI Widget']);
     }
 
-    public function test_validation_error_when_ai_cannot_heal(): void
+    public function test_person_is_notified_when_ai_cannot_heal(): void
     {
         $this->mock(AiConfigHealer::class, fn ($m) => $m->shouldReceive('healStoreForUrl')
             ->andReturnNull());
 
         $this->mockScrape('', '');
 
+        // The AI repair runs in the background (R19): the panel goes back to the
+        // list, and the failure arrives as a notification.
         Livewire::test(CreateProduct::class)
             ->fillForm([
                 'url' => self::URL,
                 'create_store' => false,
             ])
             ->call('create')
-            ->assertHasErrors(['url']);
+            ->assertNotified(__('No price – AI repair in the background'))
+            ->assertRedirect(ProductResource::getUrl('index'));
 
         $this->assertDatabaseCount('products', 0);
+        $this->assertSame(1, auth()->user()->notifications()->where('type', CreateProductFailedNotification::class)->count());
     }
 }

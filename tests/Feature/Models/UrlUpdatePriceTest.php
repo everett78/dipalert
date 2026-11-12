@@ -3,6 +3,7 @@
 namespace Tests\Feature\Models;
 
 use App\Dto\AiExtractionResultDto;
+use App\Dto\FetchContext;
 use App\Models\Price;
 use App\Models\Product;
 use App\Models\Store;
@@ -64,7 +65,7 @@ class UrlUpdatePriceTest extends TestCase
         ]);
         $url = Url::factory()->for(Product::factory())->for($store)->create();
 
-        $price = $url->updatePrice(null, ['price' => null, 'body' => '<html>9.99</html>', 'availability' => null]);
+        $price = $url->updatePrice(null, ['price' => null, 'body' => '<html>9.99</html>', 'availability' => null], FetchContext::run());
 
         $this->assertInstanceOf(Price::class, $price);
         $this->assertSame(9.99, (float) $price->price);
@@ -76,7 +77,7 @@ class UrlUpdatePriceTest extends TestCase
 
         $url = Url::factory()->for(Product::factory())->create();
 
-        $price = $url->updatePrice(null, ['price' => null, 'body' => '<html>9.99</html>', 'availability' => null]);
+        $price = $url->updatePrice(null, ['price' => null, 'body' => '<html>9.99</html>', 'availability' => null], FetchContext::run());
 
         $this->assertNull($price);
         $this->assertDatabaseCount('prices', 0);

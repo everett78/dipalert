@@ -79,40 +79,31 @@ class PublicHttpUrlTest extends TestCase
 
     public function test_it_blocks_public_hostnames_that_resolve_to_private_ips(): void
     {
-        $rule = new class extends PublicHttpUrl
-        {
-            protected function resolveHostIps(string $host): array
-            {
-                return ['10.0.0.20'];
-            }
-        };
+        $this->hostResolver->set('internal.example.com', ['10.0.0.20']);
 
-        $this->assertNotEmpty($this->runRule('http://internal.example.com/', $rule));
+        $this->assertNotEmpty($this->runRule('http://internal.example.com/'));
     }
 
     public function test_it_blocks_hostnames_that_cannot_be_resolved(): void
     {
-        $rule = new class extends PublicHttpUrl
-        {
-            protected function resolveHostIps(string $host): array
-            {
-                return [];
-            }
-        };
+        $this->hostResolver->set('does-not-resolve.example', []);
 
-        $this->assertNotEmpty($this->runRule('http://does-not-resolve.example/', $rule));
+        $this->assertNotEmpty($this->runRule('http://does-not-resolve.example/'));
     }
 
     public function test_it_allows_a_hostname_that_resolves_to_a_public_ip(): void
     {
-        $rule = new class extends PublicHttpUrl
-        {
-            protected function resolveHostIps(string $host): array
-            {
-                return ['93.184.216.34'];
-            }
-        };
+        $this->hostResolver->set('example.com', ['93.184.216.34']);
 
-        $this->assertSame([], $this->runRule('http://example.com/', $rule));
+        $this->assertSame([], $this->runRule('http://example.com/'));
+    }
+
+    public function test_service_mode_allows_listed_internal_hosts_only(): void
+    {
+        config(['dipalert.allowed_internal_hosts' => ['192.168.0.30:11434']]);
+
+        $this->assertSame([], $this->runRule('http://192.168.0.30:11434', new PublicHttpUrl(allowInternalServices: true)));
+        $this->assertNotEmpty($this->runRule('http://192.168.0.31:11434', new PublicHttpUrl(allowInternalServices: true)));
+        $this->assertNotEmpty($this->runRule('http://192.168.0.30:11434'));
     }
 }

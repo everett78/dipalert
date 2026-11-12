@@ -50,6 +50,12 @@ class CreateHandler extends Handlers
             ], 201);
         }
 
+        if (Url::$lastRepairQueued) {
+            return response()->json([
+                'message' => 'No price found; the URL is being added with AI repair in the background',
+            ], 202);
+        }
+
         return response()->json([
             'message' => 'Unable to create product, check the logs',
         ], 422);

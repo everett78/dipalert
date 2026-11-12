@@ -36,6 +36,9 @@ use Spatie\Sluggable\SlugOptions;
  * @property string|null $ai_provider_id
  * @property bool $ai_self_healing_disabled
  * @property bool $missing_price_out_of_stock
+ * @property int $min_interval_seconds
+ * @property ?string $suggested_scraper_service
+ * @property ?string $last_test_outcome
  * @property string $locale
  * @property string $currency
  * @property Collection $urls
@@ -206,6 +209,37 @@ class Store extends Model
             get: function () {
                 return data_get($this->settings, 'scraper_service', ScraperService::Http->value);
             }
+        );
+    }
+
+    /**
+     * Minimum seconds between two requests to this store.
+     */
+    public function minIntervalSeconds(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): int => (int) (data_get($this->settings, 'min_interval_seconds')
+                ?: config('dipalert.default_min_interval_seconds', 10)),
+        );
+    }
+
+    /**
+     * A fetch method proposed by AI repair (it never switches the method itself).
+     */
+    public function suggestedScraperService(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => data_get($this->settings, 'suggested_scraper_service'),
+        );
+    }
+
+    /**
+     * Outcome of the last store test in the panel (a FetchOutcome value).
+     */
+    public function lastTestOutcome(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => data_get($this->settings, 'last_test_outcome'),
         );
     }
 

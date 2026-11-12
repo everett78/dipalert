@@ -16,8 +16,34 @@ wymienia plik [NOTICE](NOTICE).
 *   Usunięte: wyszukiwarka produktów SearXNG oraz powiadomienia inne niż
     e-mail (ntfy, Gotify, Discord, Apprise, Telegram, Pushover). Historia
     powiadomień w panelu zostaje.
-*   Kolejne etapy (FlareSolverr, tempo odczytów, dzienny e-mail, kolekcje,
-    listy ofert z Ceneo) opisuje dokument projektowy autora.
+*   Pobieranie stron przez FlareSolverr (metoda sklepu `flaresolverr`),
+    blokada adresów sieci domowej (`UrlGuard`), odstęp między zapytaniami
+    do jednego sklepu i przerwa po blokadzie (rosnąca, liczona
+    w przebiegach), naprawa przez AI tylko przy braku ceny.
+*   Kolejne etapy (dzienny e-mail, kolekcje, listy ofert z Ceneo) opisuje
+    dokument projektowy autora.
+
+## Metoda pobierania sklepu
+
+Każdy sklep ma metodę pobierania w ustawieniach sklepu (**Scraper service**):
+
+*   `http` — zwykłe zapytanie, domyślne dla nowych sklepów;
+*   `flaresolverr` — przeglądarka przez FlareSolverr, dla sklepów, które
+    blokują zwykłe zapytania. Wymaga `FLARESOLVERR_URL` i hosta FlareSolverr
+    w `DIPALERT_ALLOWED_INTERNAL_HOSTS`.
+
+Gdy test sklepu w panelu pokaże „blokada”, wybierz `flaresolverr`
+i powtórz test. Aplikacja nie zmienia metody sama.
+
+Sklepy, które wymagają `flaresolverr` (sprawdzone w teście odczytu,
+listopad 2026):
+
+*   **Allegro** (`allegro.pl`) — zwykłe zapytanie dostaje stronę DataDome.
+*   **Agata Meble** (`agatameble.pl`) — zwykłe zapytanie z aplikacji dostaje
+    odpowiedź 403.
+
+Komputronik działa zwykłym zapytaniem (`http`); wcześniejszy brak ceny
+w teście był chwilowy.
 
 ## Wdrożenie na TrueNAS
 

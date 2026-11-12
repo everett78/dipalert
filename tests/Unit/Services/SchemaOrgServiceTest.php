@@ -291,4 +291,85 @@ HTML;
         // We want it to return null if it's not a string or first element is not a string.
         $this->assertNull(SchemaOrgService::parseSchemaOrg(collect($jsonLd), 'availability'));
     }
+
+    /**
+     * Morele: JSON-LD blocks cut from saved pages (tests/Fixtures/Morele).
+     *
+     * @return array{url: string, blocks: array<int, mixed>}
+     */
+    protected function morele(string $page): array
+    {
+        return json_decode((string) file_get_contents(base_path('tests/Fixtures/Morele/'.$page.'.json')), true);
+    }
+
+    /**
+     * @dataProvider morelePages
+     */
+    public function test_morele_product_is_found_in_a_list_block(string $page, string $price): void
+    {
+        $fixture = $this->morele($page);
+
+        $this->assertSame($price, SchemaOrgService::parseSchemaOrg(collect($fixture['blocks']), 'price', $fixture['url']));
+        $this->assertNotEmpty(SchemaOrgService::parseSchemaOrg(collect($fixture['blocks']), 'title', $fixture['url']));
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function morelePages(): array
+    {
+        return [
+            'variants list, 07' => ['07', '1536.99'],
+            'single product, 08 (regression)' => ['08', '899'],
+            'variants list, 09' => ['09', '399'],
+        ];
+    }
+
+    public function test_variant_is_chosen_by_the_page_address(): void
+    {
+        $jsonLd = [[
+            '@type' => 'ProductGroup',
+            'name' => 'Chair',
+            'hasVariant' => [
+                ['@type' => 'Product', 'name' => 'Chair black', 'url' => 'https://shop.example/chair-black/', 'offers' => ['price' => 399]],
+                ['@type' => 'Product', 'name' => 'Chair white', 'url' => 'https://shop.example/chair-white/', 'offers' => ['price' => 429]],
+            ],
+        ]];
+
+        $this->assertSame('429', SchemaOrgService::parseSchemaOrg(collect($jsonLd), 'price', 'https://www.shop.example/chair-white'));
+    }
+
+    public function test_graph_is_flattened(): void
+    {
+        $jsonLd = [[
+            '@context' => 'https://schema.org',
+            '@graph' => [
+                ['@type' => 'WebPage', 'name' => 'Page'],
+                ['@type' => 'Product', 'name' => 'Lamp', 'offers' => ['price' => '59.90']],
+            ],
+        ]];
+
+        $this->assertSame('59.90', SchemaOrgService::parseSchemaOrg(collect($jsonLd), 'price'));
+    }
+
+    public function test_product_with_offers_wins_in_a_list_without_a_matching_address(): void
+    {
+        $jsonLd = [[
+            ['@type' => 'ProductGroup', 'name' => 'Group'],
+            ['@type' => 'Product', 'name' => 'No offers', 'url' => 'https://shop.example/a'],
+            ['@type' => 'Product', 'name' => 'With offers', 'url' => 'https://shop.example/b', 'offers' => ['price' => 10]],
+        ]];
+
+        $this->assertSame('With offers', SchemaOrgService::parseSchemaOrg(collect($jsonLd), 'title', 'https://shop.example/other'));
+    }
+
+    public function test_list_without_offers_falls_back_to_the_first_product(): void
+    {
+        $jsonLd = [[
+            ['@type' => 'Product', 'name' => 'First'],
+            ['@type' => 'Product', 'name' => 'Second'],
+        ]];
+
+        $this->assertSame('First', SchemaOrgService::parseSchemaOrg(collect($jsonLd), 'title'));
+    }
 }

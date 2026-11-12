@@ -93,7 +93,11 @@ class AddUrlAction extends Action
                 );
 
                 if ($urlModel === false) {
-                    $this->failure();
+                    // No price: the add with AI repair runs in the background and
+                    // the person was already told so.
+                    if (! Url::$lastRepairQueued) {
+                        $this->failure();
+                    }
 
                     return;
                 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProductResource\Actions;
 
+use App\Dto\FetchContext;
 use App\Jobs\UpdateAllPricesJob;
 use App\Models\Product;
 use Exception;
@@ -36,7 +37,7 @@ class FetchAction extends Action
                 /** @var Product $product */
                 $product = $this->getRecord();
 
-                UpdateAllPricesJob::dispatch([$product->id]);
+                UpdateAllPricesJob::dispatch([$product->id], FetchContext::panelQueued());
 
                 $this->success();
             } catch (Exception $e) {

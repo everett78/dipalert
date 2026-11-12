@@ -2,14 +2,17 @@
 
 namespace App\Services\Ai;
 
+use App\Dto\FetchContext;
 use App\Dto\StandardStrategyDto;
 use App\Enums\ScraperService;
+use App\Exceptions\PageBlockedException;
 use App\Models\Store;
 use App\Services\ExtractionBudget;
+use App\Services\Scrapers\FetchOutcomeClassifier;
+use App\Services\Scrapers\ScraperFactory;
 use App\Services\StrategyExtractor;
 use Illuminate\Support\Str;
 use Jez500\WebScraperForLaravel\Facades\WebScraper;
-use Jez500\WebScraperForLaravel\WebScraperApi;
 use Jez500\WebScraperForLaravel\WebScraperInterface;
 use RuntimeException;
 use Throwable;
@@ -26,13 +29,33 @@ class HealingContext
 
     protected bool $usedBrowser = false;
 
+    public readonly FetchContext $ctx;
+
     public function __construct(
         public readonly string $url,
         public readonly Store $store,
         ?string $initialHtml = null,
         public readonly ?ExtractionBudget $budget = null,
+        ?FetchContext $ctx = null,
     ) {
         $this->html = $initialHtml;
+        $this->ctx = $ctx ?? FetchContext::panel();
+    }
+
+    /**
+     * The fetch method for a static or rendered page. Uses the store method; a
+     * rendered page of an "http" store goes through FlareSolverr. Never the
+     * SeleniumBase browser ("api"), which is not deployed.
+     */
+    public function serviceFor(bool $rendered): string
+    {
+        $service = ScraperService::tryFrom((string) $this->store->scraper_service) ?? ScraperService::Http;
+
+        if ($rendered) {
+            return ScraperService::FlareSolverr->value;
+        }
+
+        return $service === ScraperService::Api ? ScraperService::Http->value : $service->value;
     }
 
     public function getHtml(): ?string
@@ -75,25 +98,38 @@ class HealingContext
             $timeout = $timeout === null ? $remaining : min($timeout, $remaining);
         }
 
-        $service = $rendered ? ScraperService::Api->value : ScraperService::Http->value;
+        $service = $this->serviceFor($rendered);
 
-        $scraper = WebScraper::make($service)->setUrl($this->url);
+        $scraper = ScraperFactory::make($service, $this->url, $this->store->exists ? $this->store : null, $this->ctx);
 
         if ($timeout !== null) {
             $scraper->setConnectTimeout($timeout)->setRequestTimeout($timeout);
         }
 
-        if ($scraper instanceof WebScraperApi) {
-            $scraper->setScraperApiBaseUrl(config('price_buddy.scraper_api_url', 'http://scraper:3000'));
+        if (! $this->ctx->useCache) {
+            $scraper->setUseCache(false);
         }
 
         if (filled($this->store->cookies)) {
             $scraper->setCookies($this->store->cookies);
         }
 
-        $this->html = $scraper->setOptions($this->store->scraper_options)->get()->getBody();
+        // Pacing exceptions (store paused or busy) and a refused address end the repair.
+        $page = $scraper->setOptions($this->store->scraper_options)->get();
 
-        if ($rendered) {
+        if (FetchOutcomeClassifier::isBlocked($scraper->getStatusCode(), $page->getBody())) {
+            throw new PageBlockedException('The page fetched for repair is a block page: '.$this->url);
+        }
+
+        // A failed fetch must not replace HTML already loaded (e.g. a good static
+        // page when the rendered fetch fails).
+        if ($page->getErrors() !== [] || blank($page->getBody())) {
+            throw new RuntimeException('Could not fetch the page for repair: '.$this->url);
+        }
+
+        $this->html = $page->getBody();
+
+        if ($rendered && $service !== $this->store->scraper_service) {
             $this->usedBrowser = true;
         }
 
@@ -151,7 +187,7 @@ class HealingContext
 
         try {
             $dto = StandardStrategyDto::fromArray(['type' => $type, 'value' => $value]);
-            $extracted = $dto ? StrategyExtractor::extract($this->scraper(), $dto, 'price') : null;
+            $extracted = $dto ? StrategyExtractor::extract($this->scraper(), $dto, 'price', $this->url) : null;
         } catch (Throwable $e) {
             return ['matched' => false, 'value' => null, 'error' => $e->getMessage()];
         }

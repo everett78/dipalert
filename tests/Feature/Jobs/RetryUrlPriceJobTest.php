@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Jobs;
 
+use App\Enums\FetchOutcome;
 use App\Jobs\RetryUrlPriceJob;
 use App\Models\Price;
 use App\Models\Product;
@@ -37,13 +38,41 @@ class RetryUrlPriceJobTest extends TestCase
         return [$url, $product];
     }
 
+    /**
+     * The fetch fails again with a network error (the only retryable outcome).
+     */
+    private function failsWithNetworkError(Url $url, FetchOutcome $outcome = FetchOutcome::NetworkError): void
+    {
+        $url->shouldReceive('updatePrice')->once()->andReturnUsing(function () use ($url, $outcome) {
+            $url->lastFetchOutcome = $outcome;
+
+            return null;
+        });
+    }
+
+    public function test_stops_without_notification_when_the_retry_ends_in_a_non_retryable_outcome(): void
+    {
+        Queue::fake();
+        Notification::fake();
+
+        $user = User::factory()->create();
+        [$url, $product] = $this->makeUrlAndProduct();
+        $product->setRelation('user', $user);
+        $this->failsWithNetworkError($url, FetchOutcome::NoPrice);
+
+        (new RetryUrlPriceJob($url, 3))->handle();
+
+        Queue::assertNotPushed(RetryUrlPriceJob::class);
+        Notification::assertNothingSent();
+    }
+
     public function test_reschedules_next_attempt_when_still_failing(): void
     {
         Queue::fake();
         Notification::fake();
 
         [$url] = $this->makeUrlAndProduct();
-        $url->shouldReceive('updatePrice')->once()->andReturnNull();
+        $this->failsWithNetworkError($url);
 
         (new RetryUrlPriceJob($url, 2))->handle();
 
@@ -62,7 +91,7 @@ class RetryUrlPriceJobTest extends TestCase
         $user = User::factory()->create();
         [$url, $product] = $this->makeUrlAndProduct();
         $product->setRelation('user', $user);
-        $url->shouldReceive('updatePrice')->once()->andReturnNull();
+        $this->failsWithNetworkError($url);
 
         // Default max attempts is 3, so attempt 3 is the final one.
         (new RetryUrlPriceJob($url, 3))->handle();
@@ -101,11 +130,11 @@ class RetryUrlPriceJobTest extends TestCase
 
         $urlA = Mockery::mock(Url::class)->makePartial();
         $urlA->setRelation('product', $product);
-        $urlA->shouldReceive('updatePrice')->once()->andReturnNull();
+        $this->failsWithNetworkError($urlA);
 
         $urlB = Mockery::mock(Url::class)->makePartial();
         $urlB->setRelation('product', $product);
-        $urlB->shouldReceive('updatePrice')->once()->andReturnNull();
+        $this->failsWithNetworkError($urlB);
 
         // Both URLs of the same product exhaust their retries (attempt 3 of 3).
         (new RetryUrlPriceJob($urlA, 3))->handle();

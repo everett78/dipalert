@@ -29,6 +29,13 @@ class CreateProduct extends CreateRecord
             priceFactor: (float) data_get($data, 'price_factor', 1),
         );
 
+        // No price: the product is created with AI repair in the background (R19),
+        // and the person was told so. Go back to the list instead of an error.
+        if ($urlModel === false && Url::$lastRepairQueued) {
+            $this->redirect(ProductResource::getUrl('index'));
+            $this->halt();
+        }
+
         if ($urlModel === false) {
             throw ValidationException::withMessages([
                 'url' => __('Unable to create product from this URL'),

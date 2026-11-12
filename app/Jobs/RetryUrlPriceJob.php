@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Dto\FetchContext;
 use App\Models\Product;
 use App\Models\Url;
 use App\Notifications\ScrapeFailNotification;
@@ -45,7 +46,7 @@ class RetryUrlPriceJob implements ShouldQueue
             return;
         }
 
-        $result = $this->url->updatePrice();
+        $result = $this->url->updatePrice(null, null, FetchContext::retry());
 
         // A non-null result means the scrape recovered (a price was recorded,
         // or the URL is legitimately out of stock). Refresh the caches to reflect
@@ -55,6 +56,12 @@ class RetryUrlPriceJob implements ShouldQueue
             $product->updatePriceCache();
             $product->updateInsightsCache();
 
+            return;
+        }
+
+        // Only a network error is worth another try. A block, a missing price or
+        // a skipped fetch ends the chain without the "exhausted" notification.
+        if (! self::isRetryable($this->url)) {
             return;
         }
 
@@ -68,6 +75,16 @@ class RetryUrlPriceJob implements ShouldQueue
         }
 
         $this->notifyExhausted($product, $settings);
+    }
+
+    /**
+     * Whether the last fetch of the URL ended with an outcome that a delayed
+     * retry can fix (config dipalert.retry_outcomes, by default a network error).
+     */
+    public static function isRetryable(Url $url): bool
+    {
+        return $url->lastFetchOutcome !== null
+            && in_array($url->lastFetchOutcome->value, (array) config('dipalert.retry_outcomes', []), true);
     }
 
     /**

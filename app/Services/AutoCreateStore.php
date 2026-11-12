@@ -3,10 +3,16 @@
 namespace App\Services;
 
 use App\Actions\CreateStoreAction;
+use App\Dto\FetchContext;
 use App\Enums\ScraperService;
 use App\Enums\ScraperStrategyType;
+use App\Exceptions\BlockedUrlException;
+use App\Exceptions\StoreBusyException;
+use App\Exceptions\StorePausedException;
 use App\Models\Store;
 use App\Services\Helpers\CurrencyHelper;
+use App\Services\Scrapers\FetchOutcomeClassifier;
+use App\Services\Scrapers\ScraperFactory;
 use Closure;
 use Exception;
 use Illuminate\Support\Uri;
@@ -27,30 +33,57 @@ class AutoCreateStore
 
     public bool $logErrors = true;
 
-    public function __construct(protected string $url, public ?string $html = null, string $scraper = self::DEFAULT_SCRAPER, int $timeout = 30)
+    protected FetchContext $ctx;
+
+    public function __construct(protected string $url, public ?string $html = null, string $scraper = self::DEFAULT_SCRAPER, int $timeout = 30, ?FetchContext $ctx = null)
     {
         $this->strategies = config('price_buddy.auto_create_store_strategies', []);
+        $this->ctx = $ctx ?? FetchContext::panel();
 
         if (empty($html)) {
-            $this->scraperService = WebScraper::make($scraper)
-                ->setConnectTimeout($timeout)
-                ->setRequestTimeout($timeout)
-                ->from($url)
-                ->get();
+            $this->scraperService = $this->fetch($scraper, $timeout);
             $this->html = $this->scraperService->getBody();
         } else {
             $this->scraperService = WebScraper::make($scraper)->setBody($this->html);
         }
     }
 
-    public static function new(string $url, ?string $html = null, string $scraper = self::DEFAULT_SCRAPER, int $timeout = 30): self
+    public static function new(string $url, ?string $html = null, string $scraper = self::DEFAULT_SCRAPER, int $timeout = 30, ?FetchContext $ctx = null): self
     {
         return resolve(static::class, [
             'url' => $url,
             'html' => $html,
             'scraper' => $scraper,
             'timeout' => $timeout,
+            'ctx' => $ctx,
         ]);
+    }
+
+    /**
+     * Fetch the page through the paced scraper. A refused address, a paused or
+     * busy store, or a block page leaves no HTML, so nothing is detected.
+     */
+    protected function fetch(string $scraper, int $timeout): WebScraperInterface
+    {
+        $paced = ScraperFactory::make($scraper, $this->url, null, $this->ctx)
+            ->setConnectTimeout($timeout)
+            ->setRequestTimeout($timeout)
+            ->from($this->url)
+            ->setUseCache($this->ctx->useCache);
+
+        try {
+            $paced->get();
+        } catch (BlockedUrlException|StorePausedException|StoreBusyException $e) {
+            $this->errorLog('Unable to fetch page to auto create store', ['url' => $this->url, 'error' => $e->getMessage()]);
+
+            return WebScraper::make($scraper)->setBody('');
+        }
+
+        if (FetchOutcomeClassifier::isBlocked($paced->getStatusCode(), $paced->getBody())) {
+            return WebScraper::make($scraper)->setBody('');
+        }
+
+        return $paced;
     }
 
     public static function canAutoCreateFromUrl(string $url, int $timeout = 30): bool
@@ -61,7 +94,7 @@ class AutoCreateStore
     /**
      * @param  ?int  $userId  the user who adds the URL. Jobs have no logged-in user, so they pass it.
      */
-    public static function createStoreFromUrl(string $url, ?int $userId = null): ?Store
+    public static function createStoreFromUrl(string $url, ?int $userId = null, ?FetchContext $ctx = null): ?Store
     {
         // Check if store exists.
         $host = strtolower(Uri::of($url)->host());
@@ -70,7 +103,7 @@ class AutoCreateStore
             return $existing;
         }
 
-        $attributes = self::new($url)->getStoreAttributes();
+        $attributes = self::new($url, ctx: $ctx)->getStoreAttributes();
 
         if ($attributes && $userId) {
             $attributes['user_id'] = $userId;
@@ -241,7 +274,7 @@ class AutoCreateStore
 
     protected function attemptSchemaOrg(string $field, ?Closure $validateValue = null): ?array
     {
-        $extracted = SchemaOrgService::parseSchemaOrg($this->scraperService->getSchemaOrg(), $field)
+        $extracted = SchemaOrgService::parseSchemaOrg($this->scraperService->getSchemaOrg(), $field, $this->url)
             ?? SchemaOrgService::parseMicrodata($this->html, $field);
 
         $value = is_null($validateValue)

@@ -2,12 +2,14 @@
 
 namespace Tests\Feature\Services;
 
+use App\Dto\FetchContext;
 use App\Models\Store;
 use App\Services\AiConfigHealer;
 use App\Services\AiService;
 use App\Services\Helpers\SettingsHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Once;
 use Jez500\WebScraperForLaravel\Facades\WebScraper;
 use Jez500\WebScraperForLaravel\WebScraperFake;
@@ -85,16 +87,27 @@ class DeterministicHealTest extends TestCase
         $blocked = '<html><head><title>Access Denied</title></head><body>blocked</body></html>';
         $schema = $this->schemaOrgHtml();
 
-        // Static (http) returns the blocked page; browser (api) returns the schema.org page.
+        // Static (http) returns the blocked page; the browser page comes through
+        // FlareSolverr (never the SeleniumBase "api" scraper).
         WebScraper::shouldReceive('make')->andReturnUsing(
-            fn (string $service) => (new WebScraperFake)->setBody($service === 'api' ? $schema : $blocked),
+            fn (string $service) => (new WebScraperFake)->setBody($service === 'api' ? '' : $blocked),
         );
+        config([
+            'dipalert.flaresolverr_url' => 'http://192.168.0.21:30098',
+            'dipalert.allowed_internal_hosts' => ['192.168.0.21:30098'],
+        ]);
+        Http::fake(['192.168.0.21:30098/*' => Http::response([
+            'status' => 'ok',
+            'solution' => ['url' => 'https://shop.test/widget', 'status' => 200, 'response' => $schema],
+        ])]);
 
         // html=null forces a static fetch (blocked) → heuristics fail → browser fetch → heuristics succeed.
-        $store = AiConfigHealer::new()->healStoreForUrl('https://shop.test/widget', null, null);
+        $store = AiConfigHealer::new()->healStoreForUrl('https://shop.test/widget', null, null, ctx: FetchContext::run());
 
         $this->assertInstanceOf(Store::class, $store);
-        $this->assertSame('api', data_get($store->settings, 'scraper_service'));
+        // The repair does not switch the method; it only suggests FlareSolverr.
+        $this->assertNotSame('api', data_get($store->settings, 'scraper_service'));
+        $this->assertSame('flaresolverr', data_get($store->settings, 'suggested_scraper_service'));
         $this->assertSame('schema_org', $store->scrape_strategy->price?->type->value);
     }
 }

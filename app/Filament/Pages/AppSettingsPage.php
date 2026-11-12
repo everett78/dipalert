@@ -8,6 +8,7 @@ use App\Enums\Icons;
 use App\Enums\IntegratedServices;
 use App\Enums\NotificationMethods;
 use App\Filament\Traits\FormHelperTrait;
+use App\Rules\PublicHttpUrl;
 use App\Rules\ValidCron;
 use App\Services\AiService;
 use App\Services\Helpers\CurrencyHelper;
@@ -215,12 +216,6 @@ class AppSettingsPage extends SettingsPage
                     ->numeric()
                     ->minValue(1)
                     ->required(),
-                TextInput::make('sleep_seconds_between_scrape')
-                    ->label('Seconds to wait before fetching next page')
-                    ->hintIcon(Icons::Help->value, 'It is recommended to wait a few seconds between fetching pages to prevent being blocked')
-                    ->numeric()
-                    ->minValue(1)
-                    ->required(),
                 TextInput::make('max_attempts_to_scrape')
                     ->label('Max scrape attempts')
                     ->hintIcon(Icons::Help->value, 'How many times to attempt to scrape a page before giving up')
@@ -359,6 +354,8 @@ class AppSettingsPage extends SettingsPage
                         TextInput::make('base_url')
                             ->label('Base URL')
                             ->url()
+                            // A home network address only for hosts in DIPALERT_ALLOWED_INTERNAL_HOSTS.
+                            ->rule(new PublicHttpUrl(allowInternalServices: true))
                             ->live(onBlur: true)
                             ->helperText(fn (Get $get): string => $get('type') === AiProvider::Ollama->value
                                 ? 'e.g. http://localhost:11434'

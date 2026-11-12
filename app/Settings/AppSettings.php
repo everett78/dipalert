@@ -10,8 +10,6 @@ class AppSettings extends Settings
 
     public int $scrape_cache_ttl = 60;
 
-    public int $sleep_seconds_between_scrape = 10;
-
     public int $log_retention_days = 30;
 
     public int $max_attempts_to_scrape = 3;

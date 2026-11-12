@@ -8,6 +8,7 @@ use App\Services\AiService;
 use App\Services\Helpers\SettingsHelper;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Once;
 use Jez500\WebScraperForLaravel\Facades\WebScraper;
 use Jez500\WebScraperForLaravel\WebScraperFake;
@@ -79,9 +80,10 @@ class AiConfigHealerBootstrapTest extends TestCase
         $this->assertSame('.t', data_get($store->scrape_strategy, 'title.value'));
         $this->assertSame('Shop.test', $store->name);
         $this->assertContains('shop.test', collect($store->domains)->pluck('domain')->all());
-        // Deterministic escalation always runs before the agent, so usedBrowser is true
-        // and the store is switched to the browser scraper.
-        $this->assertSame('api', data_get($store->settings, 'scraper_service'));
+        // The rendered escalation goes through FlareSolverr, which is not set up here,
+        // so the static HTML is used and nothing is suggested. The method never changes.
+        $this->assertSame('http', data_get($store->settings, 'scraper_service'));
+        $this->assertNull(data_get($store->settings, 'suggested_scraper_service'));
     }
 
     /**
@@ -90,6 +92,16 @@ class AiConfigHealerBootstrapTest extends TestCase
      */
     private function mockAgentUsingBrowser(array $proposal): void
     {
+        // The browser page comes through FlareSolverr (never the SeleniumBase "api").
+        config([
+            'dipalert.flaresolverr_url' => 'http://192.168.0.21:30098',
+            'dipalert.allowed_internal_hosts' => ['192.168.0.21:30098'],
+        ]);
+        Http::fake(['192.168.0.21:30098/*' => Http::response([
+            'status' => 'ok',
+            'solution' => ['url' => 'https://shop.test/widget', 'status' => 200, 'response' => $this->html()],
+        ])]);
+
         $this->mock(AiService::class, function ($m) use ($proposal) {
             $m->shouldReceive('runAgent')->once()->andReturnUsing(function ($instructions, $schema, $prompt, $tools) use ($proposal) {
                 $tools[0]->handle(new Request(['rendered' => true]));
@@ -99,7 +111,7 @@ class AiConfigHealerBootstrapTest extends TestCase
         });
     }
 
-    public function test_new_store_uses_browser_scraper_when_agent_switched_to_rendered(): void
+    public function test_new_store_gets_a_flaresolverr_suggestion_when_agent_switched_to_rendered(): void
     {
         $this->configureProviders();
         $this->mockAgentUsingBrowser($this->validProposal());
@@ -107,11 +119,13 @@ class AiConfigHealerBootstrapTest extends TestCase
         $store = AiConfigHealer::new()->healStoreForUrl('https://shop.test/widget', null, null);
 
         $this->assertInstanceOf(Store::class, $store);
-        $this->assertSame('api', data_get($store->settings, 'scraper_service'));
+        // The repair never switches the method; it suggests FlareSolverr instead.
+        $this->assertNotSame('api', data_get($store->settings, 'scraper_service'));
+        $this->assertSame('flaresolverr', data_get($store->settings, 'suggested_scraper_service'));
         $this->assertSame('#pr', data_get($store->scrape_strategy, 'price.value'));
     }
 
-    public function test_existing_store_switched_to_browser_when_agent_used_rendered(): void
+    public function test_existing_store_keeps_its_method_when_agent_used_rendered(): void
     {
         $this->configureProviders();
         $this->mockAgentUsingBrowser($this->validProposal());
@@ -122,7 +136,8 @@ class AiConfigHealerBootstrapTest extends TestCase
 
         AiConfigHealer::new()->healStoreForUrl('https://shop.test/widget', $store, null);
 
-        $this->assertSame('api', data_get($store->fresh()->settings, 'scraper_service'));
+        $this->assertSame('http', data_get($store->fresh()->settings, 'scraper_service'));
+        $this->assertSame('flaresolverr', data_get($store->fresh()->settings, 'suggested_scraper_service'));
     }
 
     public function test_repairs_an_existing_store(): void
@@ -213,8 +228,8 @@ class AiConfigHealerBootstrapTest extends TestCase
         $this->assertSame('#pr', data_get($preview, 'fields.price.value'));
         $this->assertSame('.t', data_get($preview, 'fields.title.value'));
         $this->assertSame('$12.99', data_get($preview, 'extracted.price'));
-        // Deterministic escalation always runs before the agent, so usedBrowser is true.
-        $this->assertTrue(data_get($preview, 'usedBrowser'));
+        // Without FlareSolverr the rendered escalation fails, so no browser was used.
+        $this->assertFalse(data_get($preview, 'usedBrowser'));
         $this->assertDatabaseCount('stores', 0);
     }
 

@@ -2,9 +2,13 @@
 
 namespace Tests\Feature\Services;
 
+use App\Enums\FetchSource;
 use App\Enums\Statuses;
 use App\Jobs\UpdateAllPricesJob;
+use App\Jobs\UpdateProductPricesJob;
 use App\Models\Product;
+use App\Models\Store;
+use App\Models\Url;
 use App\Models\User;
 use App\Services\PriceFetcherService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,6 +45,57 @@ class PriceFetcherServiceTest extends TestCase
         return $ids;
     }
 
+    /**
+     * Product ids of the UpdateProductPricesJob jobs, in dispatch order.
+     *
+     * @return array<int, int>
+     */
+    protected function dispatchedProductJobIds(): array
+    {
+        $ids = [];
+        Bus::assertDispatched(UpdateProductPricesJob::class, function (UpdateProductPricesJob $job) use (&$ids) {
+            $ids[] = $job->productId;
+
+            return true;
+        });
+
+        return $ids;
+    }
+
+    public function test_global_lane_sends_one_job_per_product_alternating_stores_as_a_run()
+    {
+        Bus::fake();
+
+        $a = Store::factory()->create();
+        $b = Store::factory()->create();
+        $products = [];
+
+        foreach ([$a, $a, $b] as $store) {
+            $product = Product::factory()->create(['user_id' => $this->user->id]);
+            Url::factory()->create(['product_id' => $product->id, 'store_id' => $store->id]);
+            $products[] = $product->id;
+        }
+
+        PriceFetcherService::new()->updateAllPrices();
+
+        $this->assertSame([$products[0], $products[2], $products[1]], $this->dispatchedProductJobIds());
+        Bus::assertDispatched(UpdateProductPricesJob::class, fn (UpdateProductPricesJob $job): bool => $job->ctx->source === FetchSource::Run
+            && ! $job->ctx->useCache);
+        Bus::assertNotDispatched(UpdateAllPricesJob::class);
+    }
+
+    public function test_due_lane_passes_the_due_context()
+    {
+        Bus::fake();
+
+        $due = Product::factory()->create(['user_id' => $this->user->id, 'refresh_interval' => 3600]);
+        $due->forceFill(['next_check_at' => now()->subMinutes(5)])->saveQuietly();
+
+        PriceFetcherService::new()->updateDuePrices();
+
+        Bus::assertDispatched(UpdateAllPricesJob::class, fn (UpdateAllPricesJob $job): bool => $job->ctx->source === FetchSource::Due);
+    }
+
     public function test_global_lane_skips_paused_and_custom_interval_products()
     {
         Bus::fake();
@@ -52,7 +107,7 @@ class PriceFetcherServiceTest extends TestCase
 
         PriceFetcherService::new()->updateAllPrices();
 
-        $ids = $this->dispatchedProductIds();
+        $ids = $this->dispatchedProductJobIds();
 
         $this->assertContains($normal->id, $ids);
         $this->assertNotContains($paused->id, $ids);

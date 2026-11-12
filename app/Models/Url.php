@@ -2,16 +2,24 @@
 
 namespace App\Models;
 
+use App\Dto\FetchContext;
+use App\Enums\AiFeature;
+use App\Enums\FetchOutcome;
 use App\Enums\StockStatus;
 use App\Events\AvailabilityChangedEvent;
+use App\Jobs\AddUrlToProductJob;
+use App\Jobs\CreateProductFromUrlJob;
+use App\Jobs\UpdateAllPricesJob;
 use App\Services\AiConfigHealer;
 use App\Services\AiScrapeEnhancer;
 use App\Services\AutoCreateStore;
 use App\Services\Helpers\AffiliateHelper;
 use App\Services\Helpers\CurrencyHelper;
+use App\Services\Helpers\IntegrationHelper;
 use App\Services\ScrapeUrl;
 use Carbon\Carbon;
 use Database\Factories\UrlFactory;
+use Filament\Notifications\Notification;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -302,9 +310,50 @@ class Url extends Model
         return $changed;
     }
 
-    public function scrape(): array
+    public function scrape(?FetchContext $ctx = null): array
     {
-        return $this->url ? ScrapeUrl::new($this->url)->scrape() : [];
+        $ctx ??= FetchContext::panel();
+
+        return $this->url
+            ? ScrapeUrl::new($this->url)->withContext($ctx)->scrape(['use_cache' => $ctx->useCache])
+            : [];
+    }
+
+    /**
+     * Whether an AI repair could run for this store (healing or AI extraction).
+     */
+    protected static function aiRepairAvailable(?Store $store): bool
+    {
+        if ($store?->ai_self_healing_disabled !== true && IntegrationHelper::isFeatureEnabled(AiFeature::Healing, $store)) {
+            return true;
+        }
+
+        return (bool) $store?->ai_extraction_enabled && IntegrationHelper::isFeatureEnabled(AiFeature::Extraction, $store);
+    }
+
+    /**
+     * A panel fetch found no price: instead of repairing while the person waits,
+     * queue a background fetch with AI repair (R19).
+     */
+    protected static function deferAiRepair(?int $productId): void
+    {
+        if ($productId === null) {
+            return;
+        }
+
+        UpdateAllPricesJob::dispatch([$productId], FetchContext::panelQueued());
+        self::$lastRepairQueued = true;
+
+        self::notifyRepairQueued();
+    }
+
+    protected static function notifyRepairQueued(): void
+    {
+        Notification::make('ai_repair_queued')
+            ->title(__('No price – AI repair in the background'))
+            ->body(__('The result will appear on the product page shortly.'))
+            ->warning()
+            ->send();
     }
 
     public function getAvailabilityStatus(): ?StockStatus
@@ -322,8 +371,9 @@ class Url extends Model
         return null;
     }
 
-    public static function createFromUrl(string $url, ?int $productId = null, ?int $userId = null, bool $createStore = true, float $priceFactor = 1): Url|false
+    public static function createFromUrl(string $url, ?int $productId = null, ?int $userId = null, bool $createStore = true, float $priceFactor = 1, ?FetchContext $ctx = null): Url|false
     {
+        $ctx ??= FetchContext::panel();
         $userId = $userId ?? auth()->id();
 
         // A user can only add a URL to their own product. Without a user (console,
@@ -332,9 +382,27 @@ class Url extends Model
             throw new AuthorizationException('The product does not belong to this user.');
         }
 
-        ['store' => $store, 'scrape' => $scrape, 'isUnavailable' => $isUnavailable] = self::scrapeAndResolveStore($url, $createStore, $userId);
+        self::$lastRepairQueued = false;
 
-        if (! $store || (! data_get($scrape, 'price') && ! $isUnavailable)) {
+        ['store' => $store, 'scrape' => $scrape, 'isUnavailable' => $isUnavailable, 'deferred' => $deferred] = self::scrapeAndResolveStore($url, $createStore, $userId, $ctx);
+
+        // In the panel a missing price is repaired in the background (R19). With a
+        // store, the link is kept and a queued fetch repairs it. Without a store, the
+        // whole add is queued; the job creates the store with AI repair.
+        $keepForRepair = $deferred && $productId !== null;
+
+        if ($deferred && $userId && ($productId === null || ! $store)) {
+            $productId === null
+                ? CreateProductFromUrlJob::dispatch($url, (int) $userId, $createStore, $priceFactor)
+                : AddUrlToProductJob::dispatch($productId, $url, (int) $userId, $priceFactor);
+
+            self::$lastRepairQueued = true;
+            self::notifyRepairQueued();
+
+            return false;
+        }
+
+        if (! $keepForRepair && (! $store || (! data_get($scrape, 'price') && ! $isUnavailable))) {
             return false;
         }
 
@@ -361,7 +429,7 @@ class Url extends Model
             'price_factor' => $priceFactor,
         ]);
 
-        $urlModel->updatePrice(data_get($scrape, 'price'), $scrape);
+        $urlModel->updatePrice(data_get($scrape, 'price'), $scrape, $ctx);
 
         return $urlModel;
     }
@@ -372,8 +440,10 @@ class Url extends Model
      * scraped and appended. Fails closed: on an invalid/unresolvable URL the record is
      * left untouched and `false` is returned.
      */
-    public function changeUrl(string $newUrl, bool $createStore = true): bool
+    public function changeUrl(string $newUrl, bool $createStore = true, ?FetchContext $ctx = null): bool
     {
+        $ctx ??= FetchContext::panel();
+
         $newUrl = trim($newUrl);
 
         if ($newUrl === '' || ! filter_var($newUrl, FILTER_VALIDATE_URL)) {
@@ -384,7 +454,7 @@ class Url extends Model
             return true;
         }
 
-        ['store' => $store, 'scrape' => $scrape, 'isUnavailable' => $isUnavailable] = self::scrapeAndResolveStore($newUrl, $createStore, $this->product?->user_id);
+        ['store' => $store, 'scrape' => $scrape, 'isUnavailable' => $isUnavailable] = self::scrapeAndResolveStore($newUrl, $createStore, $this->product?->user_id, $ctx);
 
         if (! $store || (! data_get($scrape, 'price') && ! $isUnavailable)) {
             return false;
@@ -395,7 +465,7 @@ class Url extends Model
             'store_id' => $store->getKey(),
         ])->save();
 
-        $this->updatePrice(data_get($scrape, 'price'), $scrape);
+        $this->updatePrice(data_get($scrape, 'price'), $scrape, $ctx);
 
         return true;
     }
@@ -404,40 +474,68 @@ class Url extends Model
      * Scrape a URL and resolve its Store, using AI self-healing as a fallback when a
      * normal scrape would not yield a usable store/price.
      *
-     * @return array{store: ?Store, scrape: array<string, mixed>, isUnavailable: bool}
+     * AI runs only when the fetch found no price (never after a block, a network
+     * error, a refused address or a skipped fetch), and never while a person waits
+     * in the panel: then "deferred" is true and the caller queues the repair.
+     *
+     * @return array{store: ?Store, scrape: array<string, mixed>, isUnavailable: bool, deferred: bool}
      */
-    protected static function scrapeAndResolveStore(string $url, bool $createStore = true, ?int $userId = null): array
+    protected static function scrapeAndResolveStore(string $url, bool $createStore = true, ?int $userId = null, ?FetchContext $ctx = null): array
     {
+        $ctx ??= FetchContext::panel();
+
         if ($createStore) {
-            AutoCreateStore::createStoreFromUrl($url, $userId);
+            AutoCreateStore::createStoreFromUrl($url, $userId, $ctx);
         }
 
         // Suppress UI toasts on these intermediate scrapes: a first attempt may legitimately
-        // fail (e.g. bot-blocked) before AI self-healing switches to browser scraping. The
-        // only user-facing feedback is the final outcome (product created, or the caller's error).
-        $scrape = ScrapeUrl::new($url)->setSendUiNotifications(false)->scrape();
+        // fail before AI repair. The only user-facing feedback is the final outcome
+        // (product created, or the caller's error).
+        $scrape = ScrapeUrl::new($url)->withContext($ctx)->setSendUiNotifications(false)->scrape(['use_cache' => $ctx->useCache]);
 
         /** @var ?Store $store */
         $store = data_get($scrape, 'store');
 
         $availabilityStrategy = data_get($store, 'scrape_strategy.availability');
         $isUnavailable = ScrapeUrl::resolveStockStatus($scrape, $availabilityStrategy)->isUnavailable();
+        $deferred = false;
 
-        // AI fallback: when a normal create would fail, let the healing agent build or
-        // repair the store config, then re-scrape once with the new config.
-        if ((! $store || (! data_get($scrape, 'price') && ! $isUnavailable))
-            && AiConfigHealer::new()->healStoreForUrl($url, $store, data_get($scrape, 'body'), $userId) !== null) {
-            $scrape = ScrapeUrl::new($url)->setSendUiNotifications(false)->scrape();
+        // AI fallback: when a normal create would fail for lack of a price, let the
+        // healing agent build or repair the store config, then re-scrape once.
+        $noPrice = (! $store || (! data_get($scrape, 'price') && ! $isUnavailable))
+            && ScrapeUrl::outcomeOf($scrape) === FetchOutcome::NoPrice;
+
+        if ($noPrice && $ctx->interactive) {
+            $deferred = self::aiRepairAvailable($store);
+        } elseif ($noPrice
+            && AiConfigHealer::new()->healStoreForUrl($url, $store, data_get($scrape, 'body'), $userId, $ctx) !== null) {
+            $scrape = ScrapeUrl::new($url)->withContext($ctx)->setSendUiNotifications(false)->scrape(['use_cache' => false]);
             $store = data_get($scrape, 'store');
             $availabilityStrategy = data_get($store, 'scrape_strategy.availability');
             $isUnavailable = ScrapeUrl::resolveStockStatus($scrape, $availabilityStrategy)->isUnavailable();
         }
 
-        return ['store' => $store, 'scrape' => $scrape, 'isUnavailable' => $isUnavailable];
+        return ['store' => $store, 'scrape' => $scrape, 'isUnavailable' => $isUnavailable, 'deferred' => $deferred];
     }
 
-    public function updatePrice(int|float|string|null $price = null, ?array $scrapeResult = null): Price|Model|null
+    /**
+     * The outcome of the last fetch in updatePrice() (not saved). Used to decide
+     * whether a delayed retry makes sense.
+     */
+    public ?FetchOutcome $lastFetchOutcome = null;
+
+    /**
+     * Set by createFromUrl() and updatePrice() when a panel fetch found no price
+     * and the AI repair was queued instead (R19). Lets the caller show "queued"
+     * instead of a failure.
+     */
+    public static bool $lastRepairQueued = false;
+
+    public function updatePrice(int|float|string|null $price = null, ?array $scrapeResult = null, ?FetchContext $ctx = null): Price|Model|null
     {
+        $ctx ??= FetchContext::panel();
+        $this->lastFetchOutcome = null;
+
         if (! $this->store_id) {
             return null;
         }
@@ -446,10 +544,24 @@ class Url extends Model
         $stockStatus = null;
 
         if (is_null($price) || $price === '') {
-            $scrapeResult = $scrapeResult ?? $this->scrape();
-            $scrapeResult = AiConfigHealer::new()->heal($this, $scrapeResult);
-            $scrapeResult = AiScrapeEnhancer::new()->enhance($this, $scrapeResult);
+            $scrapeResult = $scrapeResult ?? $this->scrape($ctx);
+            $outcome = ScrapeUrl::outcomeOf($scrapeResult);
+
+            if ($outcome === FetchOutcome::NoPrice && ! $ctx->interactive) {
+                $scrapeResult = AiConfigHealer::new()->heal($this, $scrapeResult, $ctx);
+                $scrapeResult = AiScrapeEnhancer::new()->enhance($this, $scrapeResult);
+
+                if (filled(data_get($scrapeResult, 'price'))) {
+                    $scrapeResult[ScrapeUrl::OUTCOME_KEY] = FetchOutcome::Ok;
+                }
+            } elseif ($outcome === FetchOutcome::NoPrice && self::aiRepairAvailable($this->store)) {
+                self::deferAiRepair($this->product_id);
+            }
+
             $price = data_get($scrapeResult, 'price');
+            $this->lastFetchOutcome = ScrapeUrl::outcomeOf($scrapeResult);
+        } else {
+            $this->lastFetchOutcome = FetchOutcome::Ok;
         }
 
         // Update out-of-stock status based on scrape result.

@@ -95,7 +95,8 @@ class StoreSelfHealUiTest extends TestCase
             ->set('healPreview', $this->preview())
             ->call('applySelfHeal')
             ->assertSet('data.scrape_strategy.price.value', '"price":([0-9.]+)')
-            ->assertSet('data.settings.scraper_service', 'api')
+            ->assertSet('data.settings.scraper_service', 'http')
+            ->assertSet('data.settings.suggested_scraper_service', 'flaresolverr')
             ->assertSet('healPreview', null);
 
         // Nothing persisted until the user clicks Save.

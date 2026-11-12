@@ -58,6 +58,32 @@
         </div>
 
         <div wire:loading.remove wire:target="mountedActionsData.0.test_scraper">
+        @php
+            $outcome = \App\Enums\FetchOutcome::tryFrom((string) data_get($scrape, 'outcome'));
+            $method = \App\Enums\ScraperService::tryFrom((string) data_get($scrape, 'method'));
+            $pausedUntil = data_get($scrape, 'paused_until');
+        @endphp
+        <div class="mb-4 flex flex-wrap items-center gap-x-6 gap-y-1 text-sm" data-test="fetch-summary">
+            <span>{{ __('Method') }}: <strong>{{ $method?->value ?? '—' }}</strong></span>
+            <span>{{ __('HTTP status') }}: <strong>{{ data_get($scrape, 'status') ?? '—' }}</strong></span>
+            @if ($outcome)
+                <span>{{ __('Result') }}: <x-filament::badge :color="$outcome->getColor()" class="inline-flex">{{ $outcome->getLabel() }}</x-filament::badge></span>
+            @endif
+        </div>
+
+        @if ($outcome === \App\Enums\FetchOutcome::Blocked && $method !== \App\Enums\ScraperService::FlareSolverr)
+            <p class="mb-4 text-sm text-warning-600 dark:text-warning-400">
+                {{ __('The store blocked the request. Choose FlareSolverr in "Change scraper" below and test again.') }}
+            </p>
+        @endif
+
+        @if (filled($pausedUntil))
+            <div class="mb-4 flex items-center gap-3 text-sm">
+                <span>{{ __('Store paused until :time', ['time' => $pausedUntil]) }}</span>
+                <x-filament::button size="xs" color="gray" wire:click="resumePacing">{{ __('Lift the pause') }}</x-filament::button>
+            </div>
+        @endif
+
         <table class="w-full text-sm border-collapse table-fixed">
             <thead>
                 <tr class="border-b border-gray-200 dark:border-white/10 text-left">

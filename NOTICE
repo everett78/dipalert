@@ -15,3 +15,12 @@ Modifications to the original work (GPL-3.0, section 5a):
             search and of notification channels other than e-mail
             (ntfy, Gotify, Discord, Apprise, Telegram, Pushover),
             first user's password no longer printed to logs.
+2026-11-12  Stage 2: fetch layer with FlareSolverr as a store fetch method,
+            guard against addresses in the home network (also after
+            redirects and for AI provider addresses), per-store interval
+            between requests and a growing pause after a block, fetch
+            outcome classification, no immediate retries after a block,
+            delayed retries only after network errors, AI repair only
+            when a page has no price (in the background when started from
+            the panel) and never switching a store's fetch method,
+            alternating store order in runs, Morele structured data fix.

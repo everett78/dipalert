@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Actions\CreateStoreAction;
 use App\Dto\AiProviderConfigDto;
+use App\Dto\FetchContext;
 use App\Dto\StoreScraperStrategySetDto;
 use App\Enums\AiFeature;
+use App\Enums\FetchOutcome;
 use App\Enums\ScraperService;
 use App\Exceptions\AiProviderException;
 use App\Models\Price;
@@ -91,7 +93,22 @@ class AiConfigHealer
         (leave its value empty) if you cannot find a reliable selector for it.
         PROMPT;
 
-    public function __construct(protected AiService $ai) {}
+    /**
+     * Context of the fetch being repaired; the repair fetches pages with it.
+     */
+    protected FetchContext $ctx;
+
+    public function __construct(protected AiService $ai)
+    {
+        $this->ctx = FetchContext::panel();
+    }
+
+    public function withContext(?FetchContext $ctx): self
+    {
+        $this->ctx = $ctx ?? FetchContext::panel();
+
+        return $this;
+    }
 
     public static function new(): self
     {
@@ -105,9 +122,17 @@ class AiConfigHealer
      * @param  array<string, mixed>  $scrapeResult
      * @return array<string, mixed>
      */
-    public function heal(Url $url, array $scrapeResult): array
+    public function heal(Url $url, array $scrapeResult, ?FetchContext $ctx = null): array
     {
+        $this->withContext($ctx);
+
         if (filled(data_get($scrapeResult, 'price'))) {
+            return $scrapeResult;
+        }
+
+        // Only a page without a price is repaired: never a block page, a network
+        // error, a refused address or a skipped fetch.
+        if (ScrapeUrl::outcomeOf($scrapeResult) !== FetchOutcome::NoPrice) {
             return $scrapeResult;
         }
 
@@ -184,10 +209,11 @@ class AiConfigHealer
         }
 
         $result = ScrapeUrl::new($otherUrl->url)
+            ->withContext($this->ctx)
             ->setMaxAttempts(1)
             ->setLogErrors(false)
             ->setSendUiNotifications(false)
-            ->scrape(['store' => $store]);
+            ->scrape(['store' => $store, 'use_cache' => $this->ctx->useCache]);
 
         if (blank(data_get($result, 'title')) || blank(data_get($result, 'price'))) {
             return false;
@@ -206,8 +232,10 @@ class AiConfigHealer
      * exists) or repairing (when one does) its scrape_strategy via the AI agent.
      * Returns the usable Store, or null when AI is unavailable/opted-out/fails.
      */
-    public function healStoreForUrl(string $url, ?Store $store, ?string $html, ?int $userId = null): ?Store
+    public function healStoreForUrl(string $url, ?Store $store, ?string $html, ?int $userId = null, ?FetchContext $ctx = null): ?Store
     {
+        $this->withContext($ctx);
+
         if ($store !== null && $store->ai_self_healing_disabled) {
             return null;
         }
@@ -260,8 +288,10 @@ class AiConfigHealer
 
             $attributes = AutoCreateStore::buildAttributes($url, $config['fields'], $userId);
 
+            // Repair never changes the fetch method, also for a new store; it only
+            // records a suggestion that the panel shows.
             if ($config['usedBrowser']) {
-                data_set($attributes, 'settings.scraper_service', ScraperService::Api->value);
+                data_set($attributes, 'settings.suggested_scraper_service', ScraperService::FlareSolverr->value);
             }
 
             $created = (new CreateStoreAction)($attributes);
@@ -312,7 +342,7 @@ class AiConfigHealer
      */
     protected function resolveConfigForUrl(string $url, ?Store $store, ?string $html, AiProviderConfigDto $provider, ?ExtractionBudget $budget = null): ?array
     {
-        $context = new HealingContext($url, $store ?? new Store(['settings' => []]), $html, $budget);
+        $context = new HealingContext($url, $store ?? new Store(['settings' => []]), $html, $budget, $this->ctx);
 
         if (blank($context->getHtml())) {
             try {
@@ -330,7 +360,7 @@ class AiConfigHealer
             return ['fields' => $detected['fields'], 'extracted' => $detected['extracted'], 'usedBrowser' => $context->usedBrowser()];
         }
 
-        if (! $context->usedBrowser()) {
+        if (! $context->usedBrowser() && $context->serviceFor(true) !== $context->serviceFor(false)) {
             $browserFetched = false;
 
             try {
@@ -540,12 +570,17 @@ class AiConfigHealer
     }
 
     /**
-     * Switch a store to the browser scraper service (in memory; caller persists).
+     * The page needed a browser: suggest FlareSolverr for the store (in memory;
+     * caller persists). The fetch method itself is never changed by a repair.
      */
     protected function useBrowserScraper(Store $store): void
     {
+        if ($store->scraper_service === ScraperService::FlareSolverr->value) {
+            return;
+        }
+
         $settings = $store->settings ?? [];
-        $settings['scraper_service'] = ScraperService::Api->value;
+        $settings['suggested_scraper_service'] = ScraperService::FlareSolverr->value;
         $store->settings = $settings;
     }
 

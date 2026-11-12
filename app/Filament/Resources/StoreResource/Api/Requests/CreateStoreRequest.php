@@ -39,6 +39,7 @@ class CreateStoreRequest extends FormRequest
             'settings' => 'required|array',
             'settings.scraper_service' => 'required|in:'.implode(',', ScraperService::values()),
             'settings.scraper_service_settings' => 'nullable|string',
+            'settings.min_interval_seconds' => 'nullable|integer|min:1|max:600',
             'settings.locale_settings.locale' => 'nullable|string',
             'settings.locale_settings.currency' => 'nullable|string',
             'notes' => 'nullable|string',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Dto\FetchContext;
 use App\Dto\PriceCacheDto;
 use App\Enums\Statuses;
 use App\Enums\StockStatus;
@@ -647,10 +648,12 @@ class Product extends Model
      *
      * @return \Illuminate\Database\Eloquent\Collection<int, Url> the URLs that failed to scrape (empty = full success)
      */
-    public function updatePrices(): \Illuminate\Database\Eloquent\Collection
+    public function updatePrices(?FetchContext $ctx = null): \Illuminate\Database\Eloquent\Collection
     {
+        $ctx ??= FetchContext::panel();
+
         $failed = $this->urls
-            ->filter(fn (Url $url) => $url->updatePrice() === null) // @phpstan-ignore-line
+            ->filter(fn (Url $url) => $url->updatePrice(null, null, $ctx) === null) // @phpstan-ignore-line
             ->values();
 
         $this->updatePriceCache();
