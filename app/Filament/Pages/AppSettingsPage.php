@@ -373,6 +373,9 @@ class AppSettingsPage extends SettingsPage
                                 AiProvider::Anthropic->value => 'Anthropic',
                                 AiProvider::Ollama->value => 'Ollama',
                                 AiProvider::Gemini->value => 'Gemini',
+                                AiProvider::Groq->value => 'Groq',
+                                AiProvider::OpenRouter->value => 'OpenRouter',
+                                AiProvider::Mistral->value => 'Mistral',
                             ])
                             ->required()
                             ->live(),

@@ -10,6 +10,9 @@ enum AiProvider: string
     case Anthropic = 'anthropic';
     case Ollama = 'ollama';
     case Gemini = 'gemini';
+    case Groq = 'groq';
+    case OpenRouter = 'openrouter';
+    case Mistral = 'mistral';
 
     /**
      * Map this provider to the Laravel AI SDK provider enum.
@@ -21,6 +24,9 @@ enum AiProvider: string
             self::Anthropic => Lab::Anthropic,
             self::Ollama => Lab::Ollama,
             self::Gemini => Lab::Gemini,
+            self::Groq => Lab::Groq,
+            self::OpenRouter => Lab::OpenRouter,
+            self::Mistral => Lab::Mistral,
         };
     }
 
