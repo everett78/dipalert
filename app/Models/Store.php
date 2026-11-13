@@ -39,6 +39,7 @@ use Spatie\Sluggable\SlugOptions;
  * @property bool $missing_price_out_of_stock
  * @property int $min_interval_seconds
  * @property ?string $logo_path
+ * @property ?string $comparison
  * @property ?string $logo_url
  * @property ?string $suggested_scraper_service
  * @property ?string $last_test_outcome
@@ -216,9 +217,25 @@ class Store extends Model
         );
     }
 
+    public const string COMPARISON_CENEO = 'ceneo';
+
+    public const string COMPARISON_SKAPIEC = 'skapiec';
+
+    /**
+     * Comparison site type (ceneo, skapiec) or null for a normal store. A
+     * comparison store always fetches with plain http.
+     */
+    public function comparison(): Attribute
+    {
+        return Attribute::make(
+            get: fn (): ?string => in_array(data_get($this->settings, 'comparison'), [self::COMPARISON_CENEO, self::COMPARISON_SKAPIEC], true)
+                ? data_get($this->settings, 'comparison')
+                : null,
+        );
+    }
+
     /**
      * Public address of the store logo, or null.
-     */
     public function logoUrl(): Attribute
     {
         return Attribute::make(

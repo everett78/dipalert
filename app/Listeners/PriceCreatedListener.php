@@ -32,9 +32,20 @@ class PriceCreatedListener
             return;
         }
 
+        // Only counted links notify: not a comparison page, not a hidden offer line.
+        if (! in_array((int) $url->getKey(), $product->countedUrlIds(), true)) {
+            return;
+        }
+
         try {
-            if ($product->shouldNotifyOnThreshold($url, $event->price)
-                || $product->shouldNotifyOnPriceChange($event->price)) {
+            // The threshold compares with the reference of the visible line. A
+            // line that just became visible only sets the reference.
+            // A switch of the visible line (in either direction) never notifies.
+            $reference = $product->takeAlertReference($url, $event->price);
+            $threshold = $reference !== null && $product->shouldNotifyOnThreshold($url, $event->price, $reference);
+            $change = $reference !== null && $product->shouldNotifyOnPriceChange($event->price);
+
+            if ($threshold || $change) {
                 $previousPrice = (float) $url->previousPrice($event->price)?->price;
                 $product->user?->notify(new PriceAlertNotification($url, $previousPrice, $event->price));
                 $event->price->update(['notified' => true]);

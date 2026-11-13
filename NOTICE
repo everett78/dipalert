@@ -40,3 +40,8 @@ Modifications to the original work (GPL-3.0, section 5a):
             product attributes, products only in disabled collections not
             checked, deleting collections and products after typing the
             name, dashboard grouped by collections (tags still available).
+2026-11-12  Stage 6a: Ceneo offer lists expanded into a price line per
+            store (offer links never opened), counted links and hidden
+            backup lines (direct link > Ceneo > Skapiec), change alerts
+            from the reference price of the visible line, "fallback only"
+            section in the daily e-mail.

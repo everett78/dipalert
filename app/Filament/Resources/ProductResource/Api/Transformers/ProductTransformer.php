@@ -134,6 +134,7 @@ class ProductTransformer extends JsonResource
         }
 
         return $this->resource->urls()
+            ->whereNull('parent_url_id')
             ->where('url_normalized', $normalized)
             ->pluck('id')
             ->map(fn ($id): int => (int) $id)

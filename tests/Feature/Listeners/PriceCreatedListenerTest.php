@@ -4,6 +4,7 @@ namespace Tests\Feature\Listeners;
 
 use App\Enums\StockStatus;
 use App\Models\Product;
+use App\Models\Store;
 use App\Models\Url;
 use App\Models\User;
 use App\Notifications\PriceAlertNotification;
@@ -98,5 +99,63 @@ class PriceCreatedListenerTest extends TestCase
         $this->assertInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class, $notification);
         $this->assertSame(3, $notification->tries);
         $this->assertSame(300, $notification->backoff);
+    }
+
+    /**
+     * A product with a direct link to a store and the same store's offer line
+     * from a Ceneo page.
+     *
+     * @return array{0: Url, 1: Url}
+     */
+    protected function directAndBackup(array $attributes): array
+    {
+        $direct = $this->urlFor($attributes);
+        $ceneoStore = Store::factory()->create(['settings' => ['scraper_service' => 'http', 'comparison' => 'ceneo']]);
+        $source = Url::factory()->create(['product_id' => $direct->product_id, 'store_id' => $ceneoStore->id]);
+        $backup = Url::factory()->create([
+            'product_id' => $direct->product_id,
+            'store_id' => $direct->store_id,
+            'parent_url_id' => $source->id,
+            'comparison_key' => 'shop.example',
+            'last_outcome' => 'ok',
+        ]);
+
+        return [$direct->fresh(), $backup->fresh()];
+    }
+
+    public function test_switching_the_visible_line_both_ways_sends_nothing(): void
+    {
+        [$direct, $backup] = $this->directAndBackup(['notify_change_percent' => 5, 'notify_change_direction' => 'both']);
+
+        $this->addPrice($direct, 100);
+        $this->addPrice($backup, 80);       // hidden: no alert
+
+        // The direct link fails: the backup line becomes visible at 80. Switching is no alert.
+        $direct->update(['last_outcome' => 'blocked']);
+        $this->addPrice($backup, 80);
+
+        // The direct link works again at 100: switching back is no alert either.
+        $direct->update(['last_outcome' => 'ok']);
+        $this->addPrice($direct, 100);
+
+        Notification::assertNothingSent();
+
+        // A real change on the visible line still notifies, once.
+        $this->addPrice($direct, 90);
+        Notification::assertSentToTimes($this->user, PriceAlertNotification::class, 1);
+    }
+
+    public function test_hidden_offer_below_the_target_sends_nothing_and_does_not_set_the_price(): void
+    {
+        [$direct, $backup] = $this->directAndBackup(['notify_price' => 50]);
+
+        $this->addPrice($direct, 100);
+        $this->addPrice($backup, 40);
+
+        Notification::assertNothingSent();
+
+        $product = $direct->product->fresh();
+        $product->updatePriceCache();
+        $this->assertSame(100.0, (float) $product->fresh()->current_price);
     }
 }
