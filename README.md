@@ -103,14 +103,33 @@ w teście był chwilowy.
         `MARIADB_ROOT_PASSWORD`);
     *   `FLARESOLVERR_URL` i `DIPALERT_ALLOWED_INTERNAL_HOSTS`;
     *   ścieżki zbiorów danych w sekcji `volumes`;
-    *   wersję obrazu (`ghcr.io/everett78/dipalert:vX.Y.Z`, nigdy `latest`).
+    *   wersję obrazu (`ghcr.io/everett78/dipalert:v1.0` lub nowszą, nigdy
+        `latest`).
 3.  Skieruj trasę tunelu Cloudflare na port aplikacji (domyślnie 8080)
     i ustaw przed nią Cloudflare Access.
 4.  Po pierwszym logowaniu ustaw pocztę w panelu: **Ustawienia →
     Powiadomienia → E-mail** (serwer SMTP, login, hasło) i włącz e-mail
     w swoim profilu użytkownika.
 5.  Ustaw w TrueNAS zadanie kopiujące zbiór `dipalert/backups` poza serwer
-    (Cloud Sync albo replikacja), raz na dobę po 03:00.
+    (Cloud Sync albo replikacja), raz na dobę po 03:00. Raz na kwartał
+    odtwórz próbnie zrzut z tej kopii na osobnej, tymczasowej instancji.
+
+### Po pierwszym uruchomieniu
+
+1.  **Ustawienia → Scrape Settings**: harmonogram odczytów, np.
+    `0 7,13,19 * * *`, i godzina dziennego e-maila (domyślnie 07:30).
+2.  Sprawdź, czy przyszedł pierwszy dzienny e-mail; temat „DipAlert: AWARIA”
+    oznacza, że przebieg się nie zaczął albo FlareSolverr nie odpowiada.
+3.  Dodaj sklepy z blokadą i ustaw im metodę `flaresolverr` (Allegro,
+    Media Expert, Agata Meble), potem test sklepu w panelu.
+4.  Dodaj pierwszy link z Ceneo: sklep `ceneo.pl` powstaje sam jako
+    porównywarka i rozwija listę ofert na linie sklepów.
+5.  **Ustawienia → AI**: Gemini jako domyślny dostawca (klucz API).
+6.  Kontrola bezpieczeństwa: dodanie linku `http://192.168.0.1/` albo
+    `http://localhost:3050/` ma zostać odrzucone.
+7.  Test 7-dniowy: dodaj linki z listy testu odczytu i przez tydzień
+    obserwuj blokady w dziennych e-mailach i na stronie „Problemy”. Po tym
+    tygodniu zapada decyzja o liście ofert ze Skąpca (etap 6b).
 
 ## Kopie zapasowe
 

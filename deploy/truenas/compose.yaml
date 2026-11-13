@@ -12,7 +12,7 @@ services:
 
   dipalert:
     # Always a fixed version, never "latest".
-    image: ghcr.io/everett78/dipalert:v0.1.0
+    image: ghcr.io/everett78/dipalert:v1.0
     restart: unless-stopped
     ports:
       - "8080:80"
@@ -36,8 +36,10 @@ services:
       APP_USER_PASSWORD: CHANGE_ME
       # Existing FlareSolverr app on TrueNAS.
       FLARESOLVERR_URL: http://192.168.0.21:30098
-      # Home-network hosts the app may connect to as services (comma separated).
-      DIPALERT_ALLOWED_INTERNAL_HOSTS: 192.168.0.21
+      # Home-network hosts the app may connect to as services (comma separated,
+      # host or host:port). Only FlareSolverr for now; add Ollama's host:port
+      # (e.g. 192.168.0.30:11434) when an Ollama AI provider is used.
+      DIPALERT_ALLOWED_INTERNAL_HOSTS: 192.168.0.21:30098
     depends_on:
       database:
         condition: service_healthy
