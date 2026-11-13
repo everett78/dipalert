@@ -31,7 +31,16 @@ wymienia plik [NOTICE](NOTICE).
 *   Link do produktu na Ceneo daje osobną linię ceny dla każdego sklepu
     z listy ofert. Link bezpośredni ma pierwszeństwo przed ofertą z Ceneo;
     gdy przestaje działać, widoczna staje się oferta z Ceneo („zapas”).
-*   Kolejne etapy (Skąpiec, dostawcy AI) opisuje dokument projektowy autora.
+*   Dostawcy AI do naprawy selektorów: oprócz OpenAI, Anthropic, Gemini
+    i Ollamy także Groq, OpenRouter i Mistral (klucz API w panelu).
+*   Lista ofert Skąpca (etap 6b) powstanie, jeśli Ceneo nie wystarczy.
+
+## AI
+
+Dostawców ustawia się w **Ustawienia → AI**. Proponowana konfiguracja:
+Gemini (darmowy plan) jako domyślny i Ollama na TrueNAS jako zapasowy.
+Adres Ollamy (np. `192.168.0.30:11434`) musi być w
+`DIPALERT_ALLOWED_INTERNAL_HOSTS`, inaczej formularz go odrzuci.
 
 ## Ceneo
 

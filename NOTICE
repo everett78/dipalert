@@ -45,3 +45,4 @@ Modifications to the original work (GPL-3.0, section 5a):
             backup lines (direct link > Ceneo > Skapiec), change alerts
             from the reference price of the visible line, "fallback only"
             section in the daily e-mail.
+2026-11-13  Stage 7: Groq, OpenRouter and Mistral as AI providers.

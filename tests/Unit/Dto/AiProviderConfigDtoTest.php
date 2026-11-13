@@ -67,3 +67,19 @@ it('returns null for an unknown or missing type', function () {
 it('returns null when the id is blank', function () {
     expect(AiProviderConfigDto::fromArray(['id' => '', 'type' => 'ollama']))->toBeNull();
 });
+
+it('builds the new providers from settings', function (string $type, AiProvider $provider) {
+    $dto = AiProviderConfigDto::fromArray([
+        'id' => 'p-'.$type,
+        'name' => ucfirst($type),
+        'type' => $type,
+        'model' => 'some-model',
+        'api_key' => 'cipher',
+    ]);
+
+    expect($dto?->type)->toBe($provider);
+})->with([
+    ['groq', AiProvider::Groq],
+    ['openrouter', AiProvider::OpenRouter],
+    ['mistral', AiProvider::Mistral],
+]);
